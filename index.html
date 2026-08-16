@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>여행 기록장</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700&display=swap');
+
+  :root{
+    --paper:#f2ead9;
+    --paper-dark:#e6dbc2;
+    --ink:#26313a;
+    --stamp:#a8412d;
+    --gold:#a1793a;
+    --green:#5c6f5a;
+    --line:#c9bb9a;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;background:var(--paper);
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(161,121,58,0.08), transparent 40%),
+      radial-gradient(circle at 80% 90%, rgba(92,111,90,0.08), transparent 40%);
+    color:var(--ink);font-family:'Noto Sans KR', sans-serif;min-height:100vh;
+  }
+  .wrap{max-width:640px;margin:0 auto;padding:20px 16px 80px;}
+  header.top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid var(--ink);padding-bottom:10px;margin-bottom:22px;}
+  header.top h1{font-family:'Zilla Slab',serif;font-weight:700;font-size:28px;margin:0;letter-spacing:-0.01em;}
+  header.top .sub{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--green);letter-spacing:.05em;}
+  .modebar{display:flex;gap:8px;}
+  .pill{font-family:'IBM Plex Mono',monospace;font-size:11px;border:1px solid var(--ink);border-radius:20px;padding:5px 10px;background:transparent;cursor:pointer;color:var(--ink);}
+  .pill.active{background:var(--ink);color:var(--paper);}
+  .locked{text-align:center;padding:60px 20px;}
+  .locked h2{font-family:'Zilla Slab',serif;font-size:22px;}
+  .locked input{font-family:'IBM Plex Mono',monospace;font-size:18px;letter-spacing:.3em;text-align:center;padding:10px;width:160px;border:2px solid var(--ink);border-radius:6px;background:var(--paper-dark);}
+  .locked button{display:block;margin:14px auto 0;padding:8px 22px;border:none;border-radius:6px;background:var(--stamp);color:#fff;font-weight:700;cursor:pointer;}
+  .err{color:var(--stamp);font-size:12px;margin-top:8px;font-family:'IBM Plex Mono',monospace;}
+  .entry-card{background:var(--paper-dark);border:1px solid var(--line);border-radius:4px;padding:16px;margin-bottom:18px;position:relative;}
+  .entry-card.archived{opacity:.82;}
+  .stamp-badge{position:absolute;top:12px;right:12px;border:2px solid var(--stamp);color:var(--stamp);font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;padding:3px 8px;border-radius:3px;transform:rotate(6deg);letter-spacing:.05em;}
+  .photo-gallery{display:flex;gap:6px;overflow-x:auto;margin-bottom:10px;padding-bottom:4px;}
+  .photo-gallery .gallery-img{height:180px;width:auto;flex-shrink:0;border-radius:3px;border:1px solid var(--line);cursor:pointer;}
+  .lightbox{position:fixed;inset:0;background:rgba(20,15,10,0.9);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px;}
+  .lightbox img{max-width:100%;max-height:100%;border-radius:4px;}
+  .entry-title{font-family:'Zilla Slab',serif;font-size:20px;font-weight:700;margin:0 0 4px;}
+  .entry-date{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--green);margin-bottom:8px;}
+  .entry-map{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--stamp);text-decoration:none;font-weight:600;border-bottom:1px dashed var(--stamp);margin-bottom:8px;}
+  .entry-food{font-size:13px;line-height:1.6;margin:8px 0 0;padding-top:8px;border-top:1px dashed var(--line);}
+  .entry-food b{color:var(--green);}
+  .entry-note{font-size:13px;line-height:1.6;color:#3c4750;margin-top:6px;white-space:pre-wrap;}
+  .card-actions{display:flex;gap:8px;margin-top:10px;}
+  .card-actions button{font-family:'IBM Plex Mono',monospace;font-size:11px;border:1px solid var(--ink);background:transparent;border-radius:4px;padding:4px 9px;cursor:pointer;}
+  .card-actions button.danger{border-color:var(--stamp);color:var(--stamp);}
+  .add-form{background:var(--paper-dark);border:1px dashed var(--gold);border-radius:4px;padding:16px;margin-bottom:22px;}
+  .add-form h3{font-family:'Zilla Slab',serif;margin:0 0 10px;font-size:17px;}
+  .add-form label{display:block;font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--green);margin:10px 0 4px;}
+  .add-form input[type=text], .add-form textarea{width:100%;padding:8px;border:1px solid var(--line);border-radius:4px;font-family:'Noto Sans KR',sans-serif;font-size:13px;background:#fdfaf3;}
+  .add-form textarea{resize:vertical;min-height:52px;}
+  .add-form input[type=file]{font-size:12px;}
+  .submit-btn{margin-top:14px;background:var(--green);color:#fff;border:none;padding:9px 20px;border-radius:4px;font-weight:700;cursor:pointer;font-size:13px;}
+  .submit-btn:disabled{opacity:.6;}
+  .empty{text-align:center;padding:40px 10px;color:var(--green);font-size:13px;}
+  .group-header{font-family:'Zilla Slab',serif;font-weight:700;font-size:16px;color:var(--stamp);border-bottom:2px solid var(--stamp);padding-bottom:4px;margin:24px 0 12px;}
+  .group-header:first-child{margin-top:0;}
+  footer.note{text-align:center;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--green);margin-top:30px;opacity:.7;}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">Loading...</div>
+
+<script>
+/* ===== 배포 전 여기만 채우세요 ===== */
+const SUPABASE_URL = "https://dslfzputgjgznhyibqsj.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzbGZ6cHV0Z2pnem5oeWlicXNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4NTcyNzAsImV4cCI6MjEwMjQzMzI3MH0.XqueqTq-4qmfhUwFHXg02xe2KD1eqNX6xKVSIw60Eig";
+const ADMIN_PIN = "0127";
+const VIEW_PIN  = "0000";
+/* =================================== */
+
+const EDIT_WINDOW_DAYS = 7;
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let state = { unlocked: sessionStorage.getItem('tl_unlocked') === '1',
+              isAdmin: sessionStorage.getItem('tl_admin') === '1',
+              entries: [],
+              filterCategory: 'all' };
+
+const app = document.getElementById('app');
+
+function render(){
+  if(!state.unlocked){ renderLock(); return; }
+  const isAdmin = state.isAdmin;
+  app.innerHTML = `
+    <header class="top">
+      <div>
+        <h1>여행 기록장</h1>
+        <div class="sub">TRAVEL LOG · ${state.entries.length}건 기록</div>
+      </div>
+      <div class="modebar">
+        <button class="pill ${isAdmin?'active':''}" id="adminToggle">${isAdmin?'관리자 모드':'보기 모드'}</button>
+      </div>
+    </header>
+    ${isAdmin ? formHTML() : ''}
+    <div id="filterBar"></div>
+    <div id="list"></div>
+    <footer class="note">기록 후 ${EDIT_WINDOW_DAYS}일간 수정 가능</footer>
+  `;
+  document.getElementById('adminToggle').onclick = toggleAdmin;
+  if(isAdmin){
+    document.getElementById('photoInput').addEventListener('change', handlePhotoPreview);
+    document.getElementById('entryForm').addEventListener('submit', handleAdd);
+    const dl = document.getElementById('categoryList');
+    dl.innerHTML = uniqueCategories().map(c => `<option value="${escapeAttr(c)}">`).join('');
+  }
+  renderFilterBar();
+  renderList();
+}
+
+function uniqueCategories(){
+  const seen = [];
+  state.entries.forEach(e => { if(!seen.includes(e.category)) seen.push(e.category); });
+  return seen;
+}
+
+function renderFilterBar(){
+  const bar = document.getElementById('filterBar');
+  const cats = uniqueCategories();
+  if(cats.length === 0){ bar.innerHTML = ''; return; }
+  const tabs = ['all', ...cats];
+  bar.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;">
+    ${tabs.map(c => `<button class="pill ${state.filterCategory===c?'active':''}" data-cat="${escapeAttr(c)}">${c==='all'?'전체':escapeHtml(c)}</button>`).join('')}
+  </div>`;
+  bar.querySelectorAll('button').forEach(btn => {
+    btn.onclick = () => { state.filterCategory = btn.dataset.cat; renderFilterBar(); renderList(); };
+  });
+}
+
+function renderLock(){
+  app.innerHTML = `
+    <div class="locked">
+      <h2>여행 기록장</h2>
+      <p style="font-size:13px;color:var(--green)">함께 쓰는 두 사람만 아는 PIN을 입력하세요</p>
+      <input type="password" id="pinInput" maxlength="4" inputmode="numeric" placeholder="••••">
+      <button id="pinBtn">입장</button>
+      <div class="err" id="pinErr"></div>
+    </div>
+  `;
+  document.getElementById('pinBtn').onclick = () => {
+    const v = document.getElementById('pinInput').value.trim();
+    if(v === VIEW_PIN || v === ADMIN_PIN){
+      state.unlocked = true;
+      state.isAdmin = (v === ADMIN_PIN);
+      sessionStorage.setItem('tl_unlocked','1');
+      sessionStorage.setItem('tl_admin', state.isAdmin ? '1':'0');
+      loadEntries();
+    } else {
+      document.getElementById('pinErr').textContent = 'PIN이 올바르지 않습니다';
+    }
+  };
+}
+
+function toggleAdmin(){
+  if(state.isAdmin){ state.isAdmin = false; sessionStorage.setItem('tl_admin','0'); render(); return; }
+  const v = prompt('관리자 PIN 입력');
+  if(v === ADMIN_PIN){ state.isAdmin = true; sessionStorage.setItem('tl_admin','1'); render(); }
+  else if(v !== null){ alert('PIN이 올바르지 않습니다'); }
+}
+
+function formHTML(){
+  return `
+  <form class="add-form" id="entryForm">
+    <h3>+ 새 기록 추가</h3>
+    <label>여행 분류</label>
+    <input type="text" id="categoryInput" list="categoryList" required placeholder="예: 26년 대만여행, 가평 여행, 한국 일상">
+    <datalist id="categoryList"></datalist>
+    <label>장소 이름</label>
+    <input type="text" id="titleInput" required placeholder="예: 오사카 도톤보리">
+    <label>위치 검색어 (비우면 장소 이름으로 자동 검색)</label>
+    <input type="text" id="mapInput" placeholder="예: 도톤보리 킨류라멘 (또는 직접 링크 붙여넣기)">
+    <label>사진 (여러 장 선택 가능)</label>
+    <input type="file" id="photoInput" accept="image/*" multiple>
+    <div id="thumbPreviewList" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;"></div>
+    <label>먹은 음식</label>
+    <textarea id="foodInput" placeholder="식당 이름, 메뉴, 한줄평"></textarea>
+    <label>메모</label>
+    <textarea id="noteInput" placeholder="자유 메모"></textarea>
+    <button type="submit" class="submit-btn">저장하기</button>
+  </form>`;
+}
+
+let pendingFiles = [];   // 원본 File 객체 (업로드용)
+let pendingPreviews = []; // 미리보기용 압축 dataURL
+
+async function handlePhotoPreview(e){
+  const files = Array.from(e.target.files);
+  for(const file of files){
+    pendingFiles.push(file);
+    pendingPreviews.push(await compressForPreview(file));
+  }
+  renderThumbList();
+  e.target.value = '';
+}
+
+function renderThumbList(){
+  const box = document.getElementById('thumbPreviewList');
+  if(!box) return;
+  box.innerHTML = pendingPreviews.map((p,i) => `
+    <div style="position:relative;">
+      <img src="${p}" style="width:70px;height:70px;object-fit:cover;border-radius:4px;border:1px solid var(--line);">
+      <button type="button" onclick="removePendingPhoto(${i})"
+        style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:var(--stamp);color:#fff;border:none;font-size:11px;line-height:1;cursor:pointer;">×</button>
+    </div>`).join('');
+}
+
+function removePendingPhoto(i){
+  pendingFiles.splice(i,1);
+  pendingPreviews.splice(i,1);
+  renderThumbList();
+}
+
+function compressForPreview(file){
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const maxW = 300;
+        const scale = Math.min(1, maxW / img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.6));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// 업로드용 압축 (원본 파일 대체, Supabase Storage로 전송)
+function compressForUpload(file){
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const maxW = 1400;
+        const scale = Math.min(1, maxW / img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.75);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function buildMapLink(text){
+  if(/^https?:\/\//i.test(text)) return text;
+  return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(text);
+}
+
+async function handleAdd(e){
+  e.preventDefault();
+  const title = document.getElementById('titleInput').value.trim();
+  if(!title) return;
+  const id = 'e' + Date.now();
+  const rawMap = document.getElementById('mapInput').value.trim();
+  const category = document.getElementById('categoryInput').value.trim() || '기타';
+
+  const btn = e.target.querySelector('.submit-btn');
+  btn.disabled = true; btn.textContent = '업로드 중...';
+
+  try{
+    // 1. 사진들을 Supabase Storage에 업로드
+    const photoUrls = [];
+    for(let i=0; i<pendingFiles.length; i++){
+      const blob = await compressForUpload(pendingFiles[i]);
+      const path = `${id}/${Date.now()}_${i}.jpg`;
+      const { error: upErr } = await sb.storage.from('photos').upload(path, blob, { contentType: 'image/jpeg' });
+      if(upErr) throw upErr;
+      const { data } = sb.storage.from('photos').getPublicUrl(path);
+      photoUrls.push(data.publicUrl);
+    }
+
+    // 2. entries 테이블에 저장
+    const { error } = await sb.from('entries').insert([{
+      id, category, title,
+      map_link: buildMapLink(rawMap || title),
+      photos: photoUrls,
+      food: document.getElementById('foodInput').value.trim(),
+      note: document.getElementById('noteInput').value.trim()
+    }]);
+    if(error) throw error;
+
+    pendingFiles = []; pendingPreviews = [];
+    await loadEntries();
+  }catch(err){
+    alert('저장 실패: ' + err.message);
+    btn.disabled = false; btn.textContent = '저장하기';
+  }
+}
+
+async function loadEntries(){
+  const { data, error } = await sb.from('entries').select('*').order('created_at', { ascending:false });
+  if(error){ alert('불러오기 실패: ' + error.message); return; }
+  state.entries = data.map(d => ({...d, createdAt: d.created_at, mapLink: d.map_link}));
+  render();
+}
+
+function isArchived(entry){
+  const created = new Date(entry.createdAt);
+  const days = (Date.now() - created.getTime()) / 86400000;
+  return days > EDIT_WINDOW_DAYS;
+}
+
+function renderList(){
+  const list = document.getElementById('list');
+  if(!list) return;
+  const filtered = state.filterCategory === 'all'
+    ? state.entries
+    : state.entries.filter(e => e.category === state.filterCategory);
+
+  if(filtered.length === 0){
+    list.innerHTML = `<div class="empty">아직 기록이 없습니다. ${state.isAdmin ? '위 폼으로 첫 기록을 남겨보세요.' : ''}</div>`;
+    return;
+  }
+  if(state.filterCategory !== 'all'){
+    list.innerHTML = filtered.map(entryCardHTML).join('');
+    return;
+  }
+  const groups = [];
+  filtered.forEach(e => {
+    let g = groups.find(g => g.category === e.category);
+    if(!g){ g = {category: e.category, items: []}; groups.push(g); }
+    g.items.push(e);
+  });
+  list.innerHTML = groups.map(g => `
+    <div class="group-header">${escapeHtml(g.category)}</div>
+    ${g.items.map(entryCardHTML).join('')}
+  `).join('');
+}
+
+function entryCardHTML(entry){
+  const archived = isArchived(entry);
+  const dateStr = new Date(entry.createdAt).toLocaleDateString('ko-KR', {year:'numeric',month:'2-digit',day:'2-digit'});
+  const photos = entry.photos || [];
+  return `
+  <div class="entry-card ${archived?'archived':''}">
+    ${archived ? '<div class="stamp-badge">ARCHIVED</div>' : ''}
+    ${photos.length ? `<div class="photo-gallery">${photos.map(p => `<img class="gallery-img" src="${p}" onclick="openLightbox('${p}')">`).join('')}</div>` : ''}
+    <div class="entry-title">${escapeHtml(entry.title)}</div>
+    <div class="entry-date">${dateStr}</div>
+    ${entry.mapLink ? `<a class="entry-map" href="${escapeAttr(entry.mapLink)}" target="_blank">📍 구글맵에서 보기</a>` : ''}
+    ${entry.food ? `<div class="entry-food"><b>먹은 음식</b><br>${escapeHtml(entry.food).replace(/\\n/g,'<br>')}</div>` : ''}
+    ${entry.note ? `<div class="entry-note">${escapeHtml(entry.note)}</div>` : ''}
+    ${(state.isAdmin && !archived) ? `<div class="card-actions"><button class="danger" onclick="deleteEntry('${entry.id}')">삭제</button></div>` : ''}
+  </div>`;
+}
+
+async function deleteEntry(id){
+  if(!confirm('이 기록을 삭제할까요? 되돌릴 수 없습니다.')) return;
+  try{
+    const { error } = await sb.from('entries').delete().eq('id', id);
+    if(error) throw error;
+    state.entries = state.entries.filter(e => e.id !== id);
+    renderList();
+  }catch(e){ alert('삭제 실패: ' + e.message); }
+}
+
+function openLightbox(src){
+  const box = document.createElement('div');
+  box.className = 'lightbox';
+  box.innerHTML = `<img src="${src}">`;
+  box.onclick = () => box.remove();
+  document.body.appendChild(box);
+}
+
+function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+function escapeAttr(s){ return s.replace(/"/g,'&quot;'); }
+
+if(state.unlocked){ loadEntries(); } else { render(); }
+</script>
+</body>
+</html>
