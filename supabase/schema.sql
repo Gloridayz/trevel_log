@@ -1,9 +1,19 @@
--- Supabase SQL Editor에서 이 파일 내용 전체를 실행하세요.
--- entries 테이블은 이미 있다면 건너뛰어도 됩니다 (없다면 아래에서 함께 생성됩니다).
+-- 새로 시작하는 경우 이 파일 전체를 Supabase SQL Editor에서 실행하세요.
+--
+-- 이미 예전 버전(각 테이블에 자유 텍스트 category 컬럼이 있는 버전)을 쓰고 있었다면
+-- 이 파일 대신 supabase/migrate_002_trip_categories.sql 을 실행하세요.
+-- (기존 데이터를 지우지 않고 새 구조로 안전하게 옮겨줍니다.)
+
+create table if not exists trip_categories (
+  id text primary key,
+  name text not null unique,
+  sort_order integer not null default 0,
+  created_at timestamptz default now()
+);
 
 create table if not exists entries (
   id text primary key,
-  category text not null default '기타',
+  trip_category_id text references trip_categories(id),
   title text not null,
   map_link text,
   food text,
@@ -14,7 +24,7 @@ create table if not exists entries (
 
 create table if not exists wishlist (
   id text primary key,
-  category text not null default '기타',
+  trip_category_id text references trip_categories(id),
   title text not null,
   map_link text,
   photo text,
@@ -22,10 +32,20 @@ create table if not exists wishlist (
   created_at timestamptz default now()
 );
 
+create table if not exists expense_items (
+  id text primary key,
+  trip_category_id text references trip_categories(id),
+  name text not null,
+  description text,
+  created_at timestamptz default now()
+);
+
 create table if not exists expenses (
   id text primary key,
-  category text not null default '기타',
-  item text not null,
+  trip_category_id text references trip_categories(id),
+  date date,
+  item text references expense_items(id),
+  note text,
   currency text not null default 'KRW',
   amount numeric not null,
   rate numeric not null default 1,
@@ -35,25 +55,31 @@ create table if not exists expenses (
 
 create table if not exists checklist_items (
   id text primary key,
-  category text not null default '기타',
+  trip_category_id text references trip_categories(id),
   owner text not null default '공동',
   text text not null,
   checked boolean not null default false,
   created_at timestamptz default now()
 );
 
+alter table trip_categories enable row level security;
 alter table entries enable row level security;
 alter table wishlist enable row level security;
+alter table expense_items enable row level security;
 alter table expenses enable row level security;
 alter table checklist_items enable row level security;
 
+drop policy if exists "public all" on trip_categories;
 drop policy if exists "public all" on entries;
 drop policy if exists "public all" on wishlist;
+drop policy if exists "public all" on expense_items;
 drop policy if exists "public all" on expenses;
 drop policy if exists "public all" on checklist_items;
 
+create policy "public all" on trip_categories for all using (true) with check (true);
 create policy "public all" on entries for all using (true) with check (true);
 create policy "public all" on wishlist for all using (true) with check (true);
+create policy "public all" on expense_items for all using (true) with check (true);
 create policy "public all" on expenses for all using (true) with check (true);
 create policy "public all" on checklist_items for all using (true) with check (true);
 
