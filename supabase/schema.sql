@@ -8,6 +8,7 @@ create table if not exists trip_categories (
   id text primary key,
   name text not null unique,
   sort_order integer not null default 0,
+  default_currency text not null default 'KRW',
   created_at timestamptz default now()
 );
 

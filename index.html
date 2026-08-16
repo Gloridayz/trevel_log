@@ -5,8 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>여행 기록장</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&family=Nanum+Gothic:wght@400;700;800&display=swap');
 
   :root{
     --paper:#f2ead9;
@@ -23,98 +25,106 @@
     background-image:
       radial-gradient(circle at 20% 10%, rgba(161,121,58,0.08), transparent 40%),
       radial-gradient(circle at 80% 90%, rgba(92,111,90,0.08), transparent 40%);
-    color:var(--ink);font-family:'Noto Sans KR', sans-serif;min-height:100vh;
+    color:var(--ink);font-family:'Nanum Gothic', sans-serif;min-height:100vh;
   }
   .wrap{max-width:640px;margin:0 auto;padding:20px 16px 80px;}
   header.top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid var(--ink);padding-bottom:10px;margin-bottom:18px;}
-  header.top h1{font-family:'Zilla Slab',serif;font-weight:700;font-size:28px;margin:0;letter-spacing:-0.01em;}
-  header.top .sub{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--green);letter-spacing:.05em;}
-  .back-btn{display:block;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--green);background:none;border:none;padding:0;margin-bottom:6px;cursor:pointer;text-align:left;}
+  header.top h1{font-family:'Nanum Myeongjo',serif;font-weight:700;font-size:28px;margin:0;letter-spacing:-0.01em;}
+  header.top .sub{font-family:'Nanum Gothic',sans-serif;font-size:11px;color:var(--green);letter-spacing:.05em;}
+  .back-btn{display:block;font-family:'Nanum Gothic',sans-serif;font-size:11px;color:var(--green);background:none;border:none;padding:0;margin-bottom:6px;cursor:pointer;text-align:left;}
   .modebar{display:flex;gap:8px;}
-  .pill{font-family:'IBM Plex Mono',monospace;font-size:11px;border:1px solid var(--ink);border-radius:20px;padding:5px 10px;background:transparent;cursor:pointer;color:var(--ink);}
+  .pill{font-family:'Nanum Gothic',sans-serif;font-size:11px;border:1px solid var(--ink);border-radius:20px;padding:5px 10px;background:transparent;cursor:pointer;color:var(--ink);}
   .pill.active{background:var(--ink);color:var(--paper);}
   .tabbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px;}
-  .tabbar .tab{font-family:'IBM Plex Mono',monospace;font-size:12px;border:1px solid var(--ink);border-radius:20px;padding:6px 14px;background:transparent;cursor:pointer;color:var(--ink);}
+  .tabbar .tab{font-family:'Nanum Gothic',sans-serif;font-size:12px;border:1px solid var(--ink);border-radius:20px;padding:6px 14px;background:transparent;cursor:pointer;color:var(--ink);}
   .tabbar .tab.active{background:var(--ink);color:var(--paper);}
   .locked{text-align:center;padding:60px 20px;}
-  .locked h2{font-family:'Zilla Slab',serif;font-size:22px;}
-  .locked input{font-family:'IBM Plex Mono',monospace;font-size:18px;letter-spacing:.3em;text-align:center;padding:10px;width:160px;border:2px solid var(--ink);border-radius:6px;background:var(--paper-dark);}
+  .locked h2{font-family:'Nanum Myeongjo',serif;font-size:22px;}
+  .locked input{font-family:'Nanum Gothic',sans-serif;font-size:18px;letter-spacing:.3em;text-align:center;padding:10px;width:160px;border:2px solid var(--ink);border-radius:6px;background:var(--paper-dark);}
   .locked button{display:block;margin:14px auto 0;padding:8px 22px;border:none;border-radius:6px;background:var(--stamp);color:#fff;font-weight:700;cursor:pointer;}
-  .err{color:var(--stamp);font-size:12px;margin-top:8px;font-family:'IBM Plex Mono',monospace;}
+  .err{color:var(--stamp);font-size:12px;margin-top:8px;font-family:'Nanum Gothic',sans-serif;}
 
   .cat-card{background:var(--paper-dark);border:1px solid var(--line);border-radius:6px;padding:16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;}
   .cat-card:hover{border-color:var(--gold);}
-  .cat-name{font-family:'Zilla Slab',serif;font-size:18px;font-weight:700;}
+  .cat-name{font-family:'Nanum Myeongjo',serif;font-size:18px;font-weight:700;}
   .cat-actions{display:flex;gap:6px;}
-  .cat-actions button{font-family:'IBM Plex Mono',monospace;font-size:11px;border:1px solid var(--ink);background:transparent;border-radius:4px;padding:4px 9px;cursor:pointer;}
+  .cat-actions button{font-family:'Nanum Gothic',sans-serif;font-size:11px;border:1px solid var(--ink);background:transparent;border-radius:4px;padding:4px 9px;cursor:pointer;}
   .cat-actions .cat-delete{border-color:var(--stamp);color:var(--stamp);}
 
   .entry-card{background:var(--paper-dark);border:1px solid var(--line);border-radius:4px;padding:16px;margin-bottom:18px;position:relative;}
   .entry-card.archived{opacity:.82;}
-  .stamp-badge{position:absolute;top:12px;right:12px;border:2px solid var(--stamp);color:var(--stamp);font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;padding:3px 8px;border-radius:3px;transform:rotate(6deg);letter-spacing:.05em;}
+  .stamp-badge{position:absolute;top:12px;right:12px;border:2px solid var(--stamp);color:var(--stamp);font-family:'Nanum Gothic',sans-serif;font-size:10px;font-weight:700;padding:3px 8px;border-radius:3px;transform:rotate(6deg);letter-spacing:.05em;}
   .photo-gallery{display:flex;gap:6px;overflow-x:auto;margin-bottom:10px;padding-bottom:4px;}
   .photo-gallery .gallery-img{height:180px;width:auto;flex-shrink:0;border-radius:3px;border:1px solid var(--line);cursor:pointer;}
   .lightbox{position:fixed;inset:0;background:rgba(20,15,10,0.9);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px;}
   .lightbox img{max-width:100%;max-height:100%;border-radius:4px;}
-  .entry-title{font-family:'Zilla Slab',serif;font-size:20px;font-weight:700;margin:0 0 4px;}
-  .entry-date{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--green);margin-bottom:8px;}
+  .entry-title{font-family:'Nanum Myeongjo',serif;font-size:20px;font-weight:700;margin:0 0 4px;}
+  .entry-date{font-family:'Nanum Gothic',sans-serif;font-size:11px;color:var(--green);margin-bottom:8px;}
   .entry-map{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--stamp);text-decoration:none;font-weight:600;border-bottom:1px dashed var(--stamp);margin-bottom:8px;}
   .entry-food{font-size:13px;line-height:1.6;margin:8px 0 0;padding-top:8px;border-top:1px dashed var(--line);}
   .entry-food b{color:var(--green);}
   .entry-note{font-size:13px;line-height:1.6;color:#3c4750;margin-top:6px;white-space:pre-wrap;}
   .card-actions{display:flex;gap:8px;margin-top:10px;}
-  .card-actions button{font-family:'IBM Plex Mono',monospace;font-size:11px;border:1px solid var(--ink);background:transparent;border-radius:4px;padding:4px 9px;cursor:pointer;}
+  .card-actions button{font-family:'Nanum Gothic',sans-serif;font-size:11px;border:1px solid var(--ink);background:transparent;border-radius:4px;padding:4px 9px;cursor:pointer;}
   .card-actions button.danger{border-color:var(--stamp);color:var(--stamp);}
   .add-form{background:var(--paper-dark);border:1px dashed var(--gold);border-radius:4px;padding:16px;margin-bottom:22px;}
-  .add-form h3{font-family:'Zilla Slab',serif;margin:0 0 10px;font-size:17px;}
-  .add-form label{display:block;font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--green);margin:10px 0 4px;}
-  .add-form input[type=text], .add-form input[type=date], .add-form select, .add-form textarea{width:100%;padding:8px;border:1px solid var(--line);border-radius:4px;font-family:'Noto Sans KR',sans-serif;font-size:13px;background:#fdfaf3;}
+  .add-form h3{font-family:'Nanum Myeongjo',serif;margin:0 0 10px;font-size:17px;}
+  .add-form label{display:block;font-size:11px;font-family:'Nanum Gothic',sans-serif;color:var(--green);margin:10px 0 4px;}
+  .add-form input[type=text], .add-form input[type=date], .add-form select, .add-form textarea{width:100%;padding:8px;border:1px solid var(--line);border-radius:4px;font-family:'Nanum Gothic',sans-serif;font-size:13px;background:#fdfaf3;}
   .add-form textarea{resize:vertical;min-height:52px;}
   .add-form input[type=file]{font-size:12px;}
   .submit-btn{margin-top:14px;background:var(--green);color:#fff;border:none;padding:9px 20px;border-radius:4px;font-weight:700;cursor:pointer;font-size:13px;}
   .submit-btn:disabled{opacity:.6;}
   .empty{text-align:center;padding:40px 10px;color:var(--green);font-size:13px;}
-  footer.note{text-align:center;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--green);margin-top:30px;opacity:.7;}
+  footer.note{text-align:center;font-family:'Nanum Gothic',sans-serif;font-size:10px;color:var(--green);margin-top:30px;opacity:.7;}
 
   .mode-switch{display:flex;gap:8px;margin-bottom:14px;}
-  .mode-switch button{font-family:'IBM Plex Mono',monospace;font-size:11px;border:1px solid var(--gold);border-radius:20px;padding:5px 12px;background:transparent;cursor:pointer;color:var(--gold);}
+  .mode-switch button{font-family:'Nanum Gothic',sans-serif;font-size:11px;border:1px solid var(--gold);border-radius:20px;padding:5px 12px;background:transparent;cursor:pointer;color:var(--gold);}
   .mode-switch button.active{background:var(--gold);color:#fff;}
   .inline-row{display:flex;gap:6px;align-items:flex-start;}
   .inline-row input{flex:1;}
-  .autofill-btn{white-space:nowrap;font-family:'IBM Plex Mono',monospace;font-size:11px;border:1px solid var(--green);background:transparent;color:var(--green);border-radius:4px;padding:8px 10px;cursor:pointer;}
+  .autofill-btn{white-space:nowrap;font-family:'Nanum Gothic',sans-serif;font-size:11px;border:1px solid var(--green);background:transparent;color:var(--green);border-radius:4px;padding:8px 10px;cursor:pointer;}
   .autofill-btn:disabled{opacity:.6;}
-  .paste-hint{font-size:11px;color:var(--green);font-family:'IBM Plex Mono',monospace;margin:6px 0;line-height:1.5;}
+  .paste-hint{font-size:11px;color:var(--green);font-family:'Nanum Gothic',sans-serif;margin:6px 0;line-height:1.5;}
   .wish-card{background:var(--paper-dark);border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-bottom:18px;}
   .wish-card img.wish-photo{width:100%;height:200px;object-fit:cover;display:block;background:var(--paper-dark);cursor:pointer;}
   .wish-body{padding:14px 16px;}
-  .wish-title{font-family:'Zilla Slab',serif;font-size:19px;font-weight:700;margin:0 0 4px;}
+  .wish-title{font-family:'Nanum Myeongjo',serif;font-size:19px;font-weight:700;margin:0 0 4px;}
   .wish-note{font-size:13px;color:#3c4750;margin:4px 0 8px;white-space:pre-wrap;}
 
-  .expense-total{background:var(--ink);color:var(--paper);border-radius:4px;padding:12px 16px;font-family:'IBM Plex Mono',monospace;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;}
+  .expense-total{background:var(--ink);color:var(--paper);border-radius:4px;padding:12px 16px;font-family:'Nanum Gothic',sans-serif;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;}
   .expense-total .amt{font-size:20px;font-weight:700;}
-  .manage-toggle{font-family:'IBM Plex Mono',monospace;font-size:11px;border:1px solid var(--gold);color:var(--gold);background:transparent;border-radius:4px;padding:6px 10px;cursor:pointer;margin-bottom:12px;}
+  .manage-toggle{font-family:'Nanum Gothic',sans-serif;font-size:11px;border:1px solid var(--gold);color:var(--gold);background:transparent;border-radius:4px;padding:6px 10px;cursor:pointer;margin-bottom:12px;}
   .ei-manage{background:var(--paper-dark);border:1px solid var(--line);border-radius:4px;padding:10px 14px;margin-bottom:18px;}
   .ei-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed var(--line);font-size:13px;}
   .ei-row:last-child{border-bottom:none;}
   .ei-desc{display:block;font-size:11px;color:var(--green);}
   .ei-actions{display:flex;gap:6px;flex-shrink:0;}
-  .ei-actions button{font-family:'IBM Plex Mono',monospace;font-size:11px;border:1px solid var(--ink);background:transparent;border-radius:4px;padding:3px 8px;cursor:pointer;}
+  .ei-actions button{font-family:'Nanum Gothic',sans-serif;font-size:11px;border:1px solid var(--ink);background:transparent;border-radius:4px;padding:3px 8px;cursor:pointer;}
   .ei-actions .ei-delete{border-color:var(--stamp);color:var(--stamp);}
   .expense-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed var(--line);font-size:13px;}
   .expense-main{display:flex;flex-direction:column;flex:1;min-width:0;}
-  .expense-date{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--green);}
+  .expense-date{font-family:'Nanum Gothic',sans-serif;font-size:10px;color:var(--green);}
   .expense-note{font-size:12px;color:#3c4750;}
   .expense-row .name{font-weight:500;}
-  .expense-row .amt{font-family:'IBM Plex Mono',monospace;text-align:right;white-space:nowrap;}
+  .expense-row .amt{font-family:'Nanum Gothic',sans-serif;text-align:right;white-space:nowrap;}
 
-  .remain-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;font-family:'IBM Plex Mono',monospace;font-size:12px;}
-  .remain-bar .dim{color:var(--green);opacity:.8;}
-  .owner-header{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--gold);margin:12px 0 6px;font-weight:700;}
-  .check-row{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:14px;}
+  .remain-bar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px;}
+  .remain-info{display:flex;flex-direction:column;gap:5px;font-family:'Nanum Gothic',sans-serif;font-size:12px;}
+  .remain-info .dim{color:var(--green);opacity:.8;}
+  .progress-track{width:140px;height:6px;background:var(--paper);border:1px solid var(--line);border-radius:3px;overflow:hidden;}
+  .progress-fill{height:100%;background:var(--green);}
+  .owner-header{display:flex;align-items:center;gap:6px;font-family:'Nanum Gothic',sans-serif;font-size:12px;color:var(--gold);margin:12px 0 6px;font-weight:700;}
+  .owner-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+  .check-row{display:flex;align-items:center;gap:8px;padding:6px 0 6px 10px;font-size:14px;border-left:4px solid transparent;}
   .check-row input[type=checkbox]{width:18px;height:18px;accent-color:var(--green);cursor:pointer;flex-shrink:0;}
   .check-row.checked .txt{text-decoration:line-through;color:#8a9088;}
   .check-row .txt{flex:1;}
-  .small-del{font-size:11px;border:1px solid var(--stamp);color:var(--stamp);background:transparent;border-radius:4px;padding:3px 8px;cursor:pointer;font-family:'IBM Plex Mono',monospace;flex-shrink:0;}
+  .small-del{font-size:11px;border:1px solid var(--stamp);color:var(--stamp);background:transparent;border-radius:4px;padding:3px 8px;cursor:pointer;font-family:'Nanum Gothic',sans-serif;flex-shrink:0;}
+
+  .export-btn{font-family:'Nanum Gothic',sans-serif;font-size:11px;border:1px solid var(--ink);background:transparent;color:var(--ink);border-radius:4px;padding:7px 12px;cursor:pointer;margin-bottom:16px;}
+  .export-btn:disabled{opacity:.6;}
+  body.exporting .card-actions{display:none;}
 </style>
 </head>
 <body>
@@ -132,12 +142,20 @@ const EDIT_WINDOW_DAYS = 7;
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const TAB_LIST = [
-  { key: 'entries', label: '기록' },
   { key: 'memories', label: '추억' },
+  { key: 'entries', label: '기록' },
   { key: 'wishlist', label: '위시리스트' },
   { key: 'expenses', label: '경비' },
   { key: 'checklist', label: '준비물' }
 ];
+
+const OWNER_COLORS = ['#a8412d', '#a1793a', '#5c6f5a', '#3a6ea1', '#7a4a91', '#ba7a2a'];
+function ownerColor(name){
+  let hash = 0;
+  const s = name || '';
+  for(let i = 0; i < s.length; i++) hash = (hash * 31 + s.charCodeAt(i)) >>> 0;
+  return OWNER_COLORS[hash % OWNER_COLORS.length];
+}
 
 let state = {
   unlocked: sessionStorage.getItem('tl_unlocked') === '1',
@@ -273,7 +291,7 @@ async function loadCategoryData(){
     state.expenses = x.data;
     state.checklist = c.data;
     state.expenseItems = ei.data;
-    state.activeTab = 'entries';
+    state.activeTab = TAB_LIST[0].key;
     render();
   }catch(err){ alert('불러오기 실패: ' + err.message); }
 }
@@ -376,6 +394,7 @@ function renderCategoryPicker(){
     });
   });
   document.querySelectorAll('.cat-rename').forEach(btn => btn.onclick = (e) => { e.stopPropagation(); renameTripCategory(btn.dataset.id); });
+  document.querySelectorAll('.cat-currency').forEach(btn => btn.onclick = (e) => { e.stopPropagation(); changeTripCategoryCurrency(btn.dataset.id); });
   document.querySelectorAll('.cat-delete').forEach(btn => btn.onclick = (e) => { e.stopPropagation(); deleteTripCategory(btn.dataset.id); });
 }
 
@@ -385,6 +404,11 @@ function categoryAddFormHTML(){
     <h3>+ 새 카테고리</h3>
     <label>이름</label>
     <input type="text" id="catNameInput" required placeholder="예: 26년 대만여행, 일상">
+    <label>기본 통화 (경비 입력 시 기본으로 선택됨)</label>
+    <input type="text" id="catCurrencyInput" list="currencyList" value="KRW" placeholder="KRW">
+    <datalist id="currencyList">
+      <option value="KRW"><option value="USD"><option value="JPY"><option value="EUR"><option value="CNY"><option value="TWD"><option value="THB">
+    </datalist>
     <button type="submit" class="submit-btn">추가하기</button>
   </form>`;
 }
@@ -395,10 +419,11 @@ function renderCategoryList(){
   }
   return state.tripCategories.map(cat => `
     <div class="cat-card" data-id="${escapeAttr(cat.id)}">
-      <span class="cat-name">${escapeHtml(cat.name)}</span>
+      <span class="cat-name">${escapeHtml(cat.name)} <span class="dim" style="font-size:12px;">(${escapeHtml(cat.default_currency || 'KRW')})</span></span>
       ${state.isAdmin ? `
         <span class="cat-actions">
           <button type="button" class="cat-rename" data-id="${escapeAttr(cat.id)}">이름변경</button>
+          <button type="button" class="cat-currency" data-id="${escapeAttr(cat.id)}">통화변경</button>
           <button type="button" class="cat-delete" data-id="${escapeAttr(cat.id)}">삭제</button>
         </span>` : ''}
     </div>
@@ -410,11 +435,12 @@ async function handleAddTripCategory(e){
   const input = document.getElementById('catNameInput');
   const name = input.value.trim();
   if(!name) return;
+  const currency = document.getElementById('catCurrencyInput').value.trim().toUpperCase() || 'KRW';
   const id = 'tc' + Date.now();
   try{
-    const { error } = await sb.from('trip_categories').insert([{ id, name }]);
+    const { error } = await sb.from('trip_categories').insert([{ id, name, default_currency: currency }]);
     if(error) throw error;
-    input.value = '';
+    e.target.reset();
     await loadTripCategories();
   }catch(err){ alert('추가 실패: ' + err.message); }
 }
@@ -428,6 +454,17 @@ async function renameTripCategory(id){
     if(error) throw error;
     await loadTripCategories();
   }catch(err){ alert('이름변경 실패: ' + err.message); }
+}
+
+async function changeTripCategoryCurrency(id){
+  const cat = state.tripCategories.find(c => c.id === id);
+  const currency = prompt('기본 통화를 입력하세요 (예: KRW, USD, JPY, TWD)', cat ? (cat.default_currency || 'KRW') : 'KRW');
+  if(!currency || !currency.trim()) return;
+  try{
+    const { error } = await sb.from('trip_categories').update({ default_currency: currency.trim().toUpperCase() }).eq('id', id);
+    if(error) throw error;
+    await loadTripCategories();
+  }catch(err){ alert('통화 변경 실패: ' + err.message); }
 }
 
 async function deleteTripCategory(id){
@@ -604,7 +641,42 @@ async function deleteEntry(id){
 /* ===== 2. 추억 탭 (기록 보기 전용) ===== */
 
 function renderMemoriesTab(){
-  document.getElementById('tabContent').innerHTML = `<div id="list">${renderEntriesList()}</div>`;
+  document.getElementById('tabContent').innerHTML = `
+    ${state.entries.length > 0 ? `<button type="button" class="export-btn" id="exportPdfBtn">📄 PDF로 내보내기</button>` : ''}
+    <div id="list">${renderEntriesList()}</div>
+  `;
+  const btn = document.getElementById('exportPdfBtn');
+  if(btn) btn.onclick = exportMemoriesToPDF;
+}
+
+async function exportMemoriesToPDF(){
+  const cat = state.tripCategories.find(c => c.id === state.selectedCategoryId);
+  const cards = document.querySelectorAll('#list .entry-card');
+  if(cards.length === 0){ alert('내보낼 기록이 없습니다.'); return; }
+  const btn = document.getElementById('exportPdfBtn');
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '만드는 중...';
+  document.body.classList.add('exporting');
+  try{
+    const { jsPDF } = window.jspdf;
+    let doc = null;
+    for(let i = 0; i < cards.length; i++){
+      const canvas = await html2canvas(cards[i], { useCORS: true, scale: 2, backgroundColor: '#f2ead9' });
+      const imgData = canvas.toDataURL('image/jpeg', 0.85);
+      if(!doc){
+        doc = new jsPDF({ unit: 'px', format: [canvas.width, canvas.height] });
+      } else {
+        doc.addPage([canvas.width, canvas.height]);
+      }
+      doc.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height);
+    }
+    doc.save(`${(cat && cat.name) || '여행기록'}_추억.pdf`);
+  }catch(err){
+    alert('내보내기 실패: ' + err.message);
+  }finally{
+    document.body.classList.remove('exporting');
+    btn.disabled = false; btn.textContent = orig;
+  }
 }
 
 function renderEntriesList(){
@@ -832,7 +904,13 @@ function renderExpensesTab(){
   if(state.expenseItemsManageOpen){
     document.querySelectorAll('.ei-rename').forEach(btn => btn.onclick = () => renameExpenseItem(btn.dataset.id));
     document.querySelectorAll('.ei-delete').forEach(btn => btn.onclick = () => deleteExpenseItem(btn.dataset.id));
+    document.getElementById('addExpenseItemBtn').onclick = handleAddExpenseItemFromManage;
   }
+}
+
+function defaultCurrency(){
+  const cat = state.tripCategories.find(c => c.id === state.selectedCategoryId);
+  return (cat && cat.default_currency) || 'KRW';
 }
 
 function expenseFormHTML(){
@@ -850,9 +928,9 @@ function expenseFormHTML(){
     <label>상세 메모</label>
     <input type="text" id="expNote" placeholder="예: 동물원 입장료">
     <label>통화</label>
-    <input type="text" id="expCurrency" list="currencyList" value="KRW" placeholder="KRW">
+    <input type="text" id="expCurrency" list="currencyList" value="${escapeAttr(defaultCurrency())}" placeholder="KRW">
     <datalist id="currencyList">
-      <option value="KRW"><option value="USD"><option value="JPY"><option value="EUR"><option value="CNY">
+      <option value="KRW"><option value="USD"><option value="JPY"><option value="EUR"><option value="CNY"><option value="TWD"><option value="THB">
     </datalist>
     <div id="expRateRow">
       <label>환율 (외화 1단위당 원화)</label>
@@ -865,9 +943,9 @@ function expenseFormHTML(){
 }
 
 function expenseItemsManageHTML(){
-  if(state.expenseItems.length === 0) return `<div class="empty">아직 등록된 항목이 없습니다.</div>`;
-  return `<div class="ei-manage">
-    ${state.expenseItems.map(i => `
+  const list = state.expenseItems.length === 0
+    ? `<div class="empty">아직 등록된 항목이 없습니다.</div>`
+    : state.expenseItems.map(i => `
       <div class="ei-row">
         <div><b>${escapeHtml(i.name)}</b>${i.description ? `<span class="ei-desc">${escapeHtml(i.description)}</span>` : ''}</div>
         <div class="ei-actions">
@@ -875,7 +953,10 @@ function expenseItemsManageHTML(){
           <button type="button" class="ei-delete" data-id="${escapeAttr(i.id)}">삭제</button>
         </div>
       </div>
-    `).join('')}
+    `).join('');
+  return `<div class="ei-manage">
+    ${list}
+    <button type="button" class="submit-btn" id="addExpenseItemBtn" style="margin-top:${state.expenseItems.length === 0 ? '0' : '12px'};">+ 새 항목 추가</button>
   </div>`;
 }
 
@@ -886,25 +967,39 @@ function updateExpenseRateVisibility(){
   rateRow.style.display = (cur === 'KRW' || cur === '') ? 'none' : '';
 }
 
+async function createExpenseItemPrompt(){
+  const name = prompt('새 항목 이름을 입력하세요 (예: 액티비티1)');
+  if(!name || !name.trim()) return null;
+  const description = (prompt('설명 (선택, 비워도 됩니다)') || '').trim();
+  const row = { id: 'ei' + Date.now(), trip_category_id: state.selectedCategoryId, name: name.trim(), description: description || null };
+  const { error } = await sb.from('expense_items').insert([row]);
+  if(error) throw error;
+  return row;
+}
+
 async function handleExpenseItemSelectChange(e){
   if(e.target.value !== '__new__') return;
-  const name = prompt('새 항목 이름을 입력하세요 (예: 액티비티1)');
-  if(!name || !name.trim()){ e.target.value = ''; return; }
-  const description = (prompt('설명 (선택, 비워도 됩니다)') || '').trim();
-  const id = 'ei' + Date.now();
   try{
-    const { error } = await sb.from('expense_items').insert([{ id, trip_category_id: state.selectedCategoryId, name: name.trim(), description: description || null }]);
-    if(error) throw error;
-    state.expenseItems.push({ id, trip_category_id: state.selectedCategoryId, name: name.trim(), description: description || null });
+    const row = await createExpenseItemPrompt();
+    if(!row){ e.target.value = ''; return; }
+    state.expenseItems.push(row);
     const sel = document.getElementById('expItemSelect');
     const opt = document.createElement('option');
-    opt.value = id; opt.textContent = name.trim();
+    opt.value = row.id; opt.textContent = row.name;
     sel.insertBefore(opt, sel.lastElementChild);
-    sel.value = id;
+    sel.value = row.id;
   }catch(err){
     alert('항목 추가 실패: ' + err.message);
     e.target.value = '';
   }
+}
+
+async function handleAddExpenseItemFromManage(){
+  try{
+    const row = await createExpenseItemPrompt();
+    if(!row) return;
+    await reloadExpenseItems();
+  }catch(err){ alert('항목 추가 실패: ' + err.message); }
 }
 
 async function renameExpenseItem(id){
@@ -1000,11 +1095,16 @@ async function deleteExpense(id){
 /* ===== 5. 준비물 탭 ===== */
 
 function renderChecklistTab(){
-  const remaining = state.checklist.filter(c => !c.checked).length;
   const total = state.checklist.length;
+  const checkedCount = state.checklist.filter(c => c.checked).length;
+  const remaining = total - checkedCount;
+  const pct = total === 0 ? 0 : Math.round(checkedCount / total * 100);
   document.getElementById('tabContent').innerHTML = `
     <div class="remain-bar">
-      <span>${remaining}개 남음 <span class="dim">/ 전체 ${total}개</span></span>
+      <div class="remain-info">
+        <span>${checkedCount}/${total} 완료 (${pct}%) <span class="dim">· ${remaining}개 남음</span></span>
+        <div class="progress-track"><div class="progress-fill" style="width:${pct}%;"></div></div>
+      </div>
       <button type="button" class="pill ${state.checklistRemainingOnly?'active':''}" id="remainToggle">남은 것만 보기</button>
     </div>
     ${checklistFormHTML()}
@@ -1021,7 +1121,7 @@ function checklistFormHTML(){
   <form class="add-form" id="checklistForm">
     <h3>+ 준비물 추가</h3>
     <label>담당(챙기는 사람)</label>
-    <input type="text" id="ckOwner" list="ownerList" placeholder="예: 공동, 아빠, 엄마">
+    <input type="text" id="ckOwner" list="ownerList" required placeholder="예: 공동, 아빠, 엄마">
     <datalist id="ownerList"></datalist>
     <label>준비물</label>
     <input type="text" id="ckText" required placeholder="예: 여권, 충전기">
@@ -1037,7 +1137,8 @@ function uniqueOwners(){
 
 async function handleChecklistAdd(e){
   e.preventDefault();
-  const owner = document.getElementById('ckOwner').value.trim() || '공동';
+  const owner = document.getElementById('ckOwner').value.trim();
+  if(!owner){ alert('담당(챙기는 사람)을 입력해주세요.'); return; }
   const text = document.getElementById('ckText').value.trim();
   if(!text) return;
   const id = 'c' + Date.now();
@@ -1072,13 +1173,13 @@ function renderChecklistList(){
   const filtered = state.checklistRemainingOnly ? state.checklist.filter(c => !c.checked) : state.checklist;
   if(filtered.length === 0) return `<div class="empty">${state.checklistRemainingOnly ? '남은 준비물이 없습니다. 🎉' : '아직 준비물이 없습니다.'}</div>`;
   return groupBy(filtered, 'owner').map(([owner, items]) => `
-    <div class="owner-header">${escapeHtml(owner)}</div>
+    <div class="owner-header"><span class="owner-dot" style="background:${ownerColor(owner)};"></span>${escapeHtml(owner)}</div>
     ${items.map(checklistRowHTML).join('')}
   `).join('');
 }
 
 function checklistRowHTML(item){
-  return `<div class="check-row ${item.checked?'checked':''}">
+  return `<div class="check-row ${item.checked?'checked':''}" style="border-left-color:${ownerColor(item.owner)};">
     <input type="checkbox" ${item.checked?'checked':''} onchange="toggleChecklistItem('${item.id}', this.checked)">
     <span class="txt">${escapeHtml(item.text)}</span>
     <button class="small-del" onclick="deleteChecklistItem('${item.id}')">삭제</button>
