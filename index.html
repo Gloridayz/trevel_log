@@ -26,12 +26,16 @@
     color:var(--ink);font-family:'Noto Sans KR', sans-serif;min-height:100vh;
   }
   .wrap{max-width:640px;margin:0 auto;padding:20px 16px 80px;}
-  header.top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid var(--ink);padding-bottom:10px;margin-bottom:22px;}
+  header.top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid var(--ink);padding-bottom:10px;margin-bottom:18px;}
   header.top h1{font-family:'Zilla Slab',serif;font-weight:700;font-size:28px;margin:0;letter-spacing:-0.01em;}
   header.top .sub{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--green);letter-spacing:.05em;}
   .modebar{display:flex;gap:8px;}
   .pill{font-family:'IBM Plex Mono',monospace;font-size:11px;border:1px solid var(--ink);border-radius:20px;padding:5px 10px;background:transparent;cursor:pointer;color:var(--ink);}
   .pill.active{background:var(--ink);color:var(--paper);}
+  .tabbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px;}
+  .tabbar .tab{font-family:'IBM Plex Mono',monospace;font-size:12px;border:1px solid var(--ink);border-radius:20px;padding:6px 14px;background:transparent;cursor:pointer;color:var(--ink);}
+  .tabbar .tab.active{background:var(--ink);color:var(--paper);}
+  .filterrow{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;}
   .locked{text-align:center;padding:60px 20px;}
   .locked h2{font-family:'Zilla Slab',serif;font-size:22px;}
   .locked input{font-family:'IBM Plex Mono',monospace;font-size:18px;letter-spacing:.3em;text-align:center;padding:10px;width:160px;border:2px solid var(--ink);border-radius:6px;background:var(--paper-dark);}
@@ -65,6 +69,35 @@
   .group-header{font-family:'Zilla Slab',serif;font-weight:700;font-size:16px;color:var(--stamp);border-bottom:2px solid var(--stamp);padding-bottom:4px;margin:24px 0 12px;}
   .group-header:first-child{margin-top:0;}
   footer.note{text-align:center;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--green);margin-top:30px;opacity:.7;}
+
+  .mode-switch{display:flex;gap:8px;margin-bottom:14px;}
+  .mode-switch button{font-family:'IBM Plex Mono',monospace;font-size:11px;border:1px solid var(--gold);border-radius:20px;padding:5px 12px;background:transparent;cursor:pointer;color:var(--gold);}
+  .mode-switch button.active{background:var(--gold);color:#fff;}
+  .inline-row{display:flex;gap:6px;align-items:flex-start;}
+  .inline-row input{flex:1;}
+  .autofill-btn{white-space:nowrap;font-family:'IBM Plex Mono',monospace;font-size:11px;border:1px solid var(--green);background:transparent;color:var(--green);border-radius:4px;padding:8px 10px;cursor:pointer;}
+  .autofill-btn:disabled{opacity:.6;}
+  .paste-hint{font-size:11px;color:var(--green);font-family:'IBM Plex Mono',monospace;margin:6px 0;line-height:1.5;}
+  .wish-card{background:var(--paper-dark);border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-bottom:18px;}
+  .wish-card img.wish-photo{width:100%;height:200px;object-fit:cover;display:block;background:var(--paper-dark);cursor:pointer;}
+  .wish-body{padding:14px 16px;}
+  .wish-title{font-family:'Zilla Slab',serif;font-size:19px;font-weight:700;margin:0 0 4px;}
+  .wish-note{font-size:13px;color:#3c4750;margin:4px 0 8px;white-space:pre-wrap;}
+
+  .expense-total{background:var(--ink);color:var(--paper);border-radius:4px;padding:12px 16px;font-family:'IBM Plex Mono',monospace;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;}
+  .expense-total .amt{font-size:20px;font-weight:700;}
+  .expense-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed var(--line);font-size:13px;}
+  .expense-row .name{font-weight:500;flex:1;}
+  .expense-row .amt{font-family:'IBM Plex Mono',monospace;text-align:right;white-space:nowrap;}
+  .expense-subtotal{display:flex;justify-content:flex-end;padding-top:8px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--stamp);font-weight:700;}
+  #expRateRow{transition:none;}
+
+  .owner-header{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--gold);margin:12px 0 6px;font-weight:700;}
+  .check-row{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:14px;}
+  .check-row input[type=checkbox]{width:18px;height:18px;accent-color:var(--green);cursor:pointer;flex-shrink:0;}
+  .check-row.checked .txt{text-decoration:line-through;color:#8a9088;}
+  .check-row .txt{flex:1;}
+  .small-del{font-size:11px;border:1px solid var(--stamp);color:var(--stamp);background:transparent;border-radius:4px;padding:3px 8px;cursor:pointer;font-family:'IBM Plex Mono',monospace;flex-shrink:0;}
 </style>
 </head>
 <body>
@@ -81,59 +114,222 @@ const VIEW_PIN  = "0000";
 const EDIT_WINDOW_DAYS = 7;
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-let state = { unlocked: sessionStorage.getItem('tl_unlocked') === '1',
-              isAdmin: sessionStorage.getItem('tl_admin') === '1',
-              entries: [],
-              filterCategory: 'all' };
+const TAB_LIST = [
+  { key: 'entries', label: '기록' },
+  { key: 'wishlist', label: '위시리스트' },
+  { key: 'expenses', label: '경비' },
+  { key: 'checklist', label: '준비물' }
+];
+
+let state = {
+  unlocked: sessionStorage.getItem('tl_unlocked') === '1',
+  isAdmin: sessionStorage.getItem('tl_admin') === '1',
+  activeTab: 'entries',
+  entries: [], entriesFilter: 'all',
+  wishlist: [], wishlistFilter: 'all', wishlistMode: 'single',
+  expenses: [], expensesFilter: 'all',
+  checklist: [], checklistFilter: 'all'
+};
 
 const app = document.getElementById('app');
 
+/* ===== 공통 유틸 ===== */
+
+function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s==null?'':s; return d.innerHTML; }
+function escapeAttr(s){ return (s==null?'':s).replace(/"/g,'&quot;'); }
+
+function groupBy(list, key){
+  const groups = [];
+  list.forEach(item => {
+    let g = groups.find(g => g[0] === item[key]);
+    if(!g){ g = [item[key], []]; groups.push(g); }
+    g[1].push(item);
+  });
+  return groups;
+}
+
+function categoriesOf(list){
+  const seen = [];
+  list.forEach(x => { if(!seen.includes(x.category)) seen.push(x.category); });
+  return seen;
+}
+
+function allCategories(){
+  const seen = [];
+  [...state.entries, ...state.wishlist, ...state.expenses, ...state.checklist].forEach(x => {
+    if(x.category && !seen.includes(x.category)) seen.push(x.category);
+  });
+  return seen;
+}
+
+function buildMapLink(text){
+  if(/^https?:\/\//i.test(text)) return text;
+  return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(text);
+}
+
+function renderFilterBar(containerId, list, filterKey){
+  const bar = document.getElementById(containerId);
+  if(!bar) return;
+  const cats = categoriesOf(list);
+  if(cats.length === 0){ bar.innerHTML = ''; return; }
+  const tabs = ['all', ...cats];
+  bar.innerHTML = `<div class="filterrow">
+    ${tabs.map(c => `<button class="pill ${state[filterKey]===c?'active':''}" data-cat="${escapeAttr(c)}">${c==='all'?'전체':escapeHtml(c)}</button>`).join('')}
+  </div>`;
+  bar.querySelectorAll('button').forEach(btn => {
+    btn.onclick = () => { state[filterKey] = btn.dataset.cat; renderActiveTab(); };
+  });
+}
+
+function openLightbox(src){
+  const box = document.createElement('div');
+  box.className = 'lightbox';
+  box.innerHTML = `<img src="${src}">`;
+  box.onclick = () => box.remove();
+  document.body.appendChild(box);
+}
+
+/* ===== 사진 압축/업로드 공통 ===== */
+
+function compressForPreview(file){
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const maxW = 300;
+        const scale = Math.min(1, maxW / img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.6));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function compressForUpload(file){
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const maxW = 1400;
+        const scale = Math.min(1, maxW / img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.75);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function dataUrlToBlob(dataUrl){
+  const [header, base64] = dataUrl.split(',');
+  const mimeMatch = header.match(/data:(.*?);base64/);
+  const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+  const binary = atob(base64);
+  const array = new Uint8Array(binary.length);
+  for(let i=0; i<binary.length; i++) array[i] = binary.charCodeAt(i);
+  return new Blob([array], { type: mime });
+}
+
+async function uploadPhotoBlob(blob, idPrefix){
+  const path = `${idPrefix}/${Date.now()}.jpg`;
+  const { error } = await sb.storage.from('photos').upload(path, blob, { contentType: blob.type || 'image/jpeg' });
+  if(error) throw error;
+  const { data } = sb.storage.from('photos').getPublicUrl(path);
+  return data.publicUrl;
+}
+
+/* ===== 데이터 로드 ===== */
+
+async function loadAll(){
+  try{
+    const [e, w, x, c] = await Promise.all([
+      sb.from('entries').select('*').order('created_at', { ascending:false }),
+      sb.from('wishlist').select('*').order('created_at', { ascending:false }),
+      sb.from('expenses').select('*').order('created_at', { ascending:false }),
+      sb.from('checklist_items').select('*').order('created_at', { ascending:false })
+    ]);
+    if(e.error) throw e.error;
+    if(w.error) throw w.error;
+    if(x.error) throw x.error;
+    if(c.error) throw c.error;
+    state.entries = e.data.map(d => ({...d, createdAt: d.created_at, mapLink: d.map_link}));
+    state.wishlist = w.data;
+    state.expenses = x.data;
+    state.checklist = c.data;
+    render();
+  }catch(err){
+    alert('불러오기 실패: ' + err.message);
+  }
+}
+
+async function reloadEntries(){
+  const { data, error } = await sb.from('entries').select('*').order('created_at', { ascending:false });
+  if(error){ alert('불러오기 실패: ' + error.message); return; }
+  state.entries = data.map(d => ({...d, createdAt: d.created_at, mapLink: d.map_link}));
+  renderActiveTab();
+}
+async function reloadWishlist(){
+  const { data, error } = await sb.from('wishlist').select('*').order('created_at', { ascending:false });
+  if(error){ alert('불러오기 실패: ' + error.message); return; }
+  state.wishlist = data;
+  renderActiveTab();
+}
+async function reloadExpenses(){
+  const { data, error } = await sb.from('expenses').select('*').order('created_at', { ascending:false });
+  if(error){ alert('불러오기 실패: ' + error.message); return; }
+  state.expenses = data;
+  renderActiveTab();
+}
+async function reloadChecklist(){
+  const { data, error } = await sb.from('checklist_items').select('*').order('created_at', { ascending:false });
+  if(error){ alert('불러오기 실패: ' + error.message); return; }
+  state.checklist = data;
+  renderActiveTab();
+}
+
+/* ===== 최상위 렌더 ===== */
+
 function render(){
   if(!state.unlocked){ renderLock(); return; }
-  const isAdmin = state.isAdmin;
   app.innerHTML = `
     <header class="top">
       <div>
         <h1>여행 기록장</h1>
-        <div class="sub">TRAVEL LOG · ${state.entries.length}건 기록</div>
+        <div class="sub">TRAVEL LOG</div>
       </div>
       <div class="modebar">
-        <button class="pill ${isAdmin?'active':''}" id="adminToggle">${isAdmin?'관리자 모드':'보기 모드'}</button>
+        <button class="pill ${state.isAdmin?'active':''}" id="adminToggle">${state.isAdmin?'관리자 모드':'보기 모드'}</button>
       </div>
     </header>
-    ${isAdmin ? formHTML() : ''}
-    <div id="filterBar"></div>
-    <div id="list"></div>
-    <footer class="note">기록 후 ${EDIT_WINDOW_DAYS}일간 수정 가능</footer>
+    <div class="tabbar" id="tabbar">
+      ${TAB_LIST.map(t => `<button class="tab ${state.activeTab===t.key?'active':''}" data-tab="${t.key}">${t.label}</button>`).join('')}
+    </div>
+    <div id="tabContent"></div>
+    ${state.activeTab === 'entries' ? `<footer class="note">기록 후 ${EDIT_WINDOW_DAYS}일간 수정 가능</footer>` : ''}
   `;
   document.getElementById('adminToggle').onclick = toggleAdmin;
-  if(isAdmin){
-    document.getElementById('photoInput').addEventListener('change', handlePhotoPreview);
-    document.getElementById('entryForm').addEventListener('submit', handleAdd);
-    const dl = document.getElementById('categoryList');
-    dl.innerHTML = uniqueCategories().map(c => `<option value="${escapeAttr(c)}">`).join('');
-  }
-  renderFilterBar();
-  renderList();
-}
-
-function uniqueCategories(){
-  const seen = [];
-  state.entries.forEach(e => { if(!seen.includes(e.category)) seen.push(e.category); });
-  return seen;
-}
-
-function renderFilterBar(){
-  const bar = document.getElementById('filterBar');
-  const cats = uniqueCategories();
-  if(cats.length === 0){ bar.innerHTML = ''; return; }
-  const tabs = ['all', ...cats];
-  bar.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;">
-    ${tabs.map(c => `<button class="pill ${state.filterCategory===c?'active':''}" data-cat="${escapeAttr(c)}">${c==='all'?'전체':escapeHtml(c)}</button>`).join('')}
-  </div>`;
-  bar.querySelectorAll('button').forEach(btn => {
-    btn.onclick = () => { state.filterCategory = btn.dataset.cat; renderFilterBar(); renderList(); };
+  document.querySelectorAll('#tabbar .tab').forEach(btn => {
+    btn.onclick = () => { state.activeTab = btn.dataset.tab; render(); };
   });
+  renderActiveTab();
+}
+
+function renderActiveTab(){
+  if(state.activeTab === 'entries') renderEntriesTab();
+  else if(state.activeTab === 'wishlist') renderWishlistTab();
+  else if(state.activeTab === 'expenses') renderExpensesTab();
+  else if(state.activeTab === 'checklist') renderChecklistTab();
 }
 
 function renderLock(){
@@ -153,7 +349,7 @@ function renderLock(){
       state.isAdmin = (v === ADMIN_PIN);
       sessionStorage.setItem('tl_unlocked','1');
       sessionStorage.setItem('tl_admin', state.isAdmin ? '1':'0');
-      loadEntries();
+      loadAll();
     } else {
       document.getElementById('pinErr').textContent = 'PIN이 올바르지 않습니다';
     }
@@ -167,7 +363,28 @@ function toggleAdmin(){
   else if(v !== null){ alert('PIN이 올바르지 않습니다'); }
 }
 
-function formHTML(){
+/* ===== 1. 기록 탭 ===== */
+
+let pendingFiles = [];   // 원본 File 객체 (업로드용)
+let pendingPreviews = []; // 미리보기용 압축 dataURL
+
+function renderEntriesTab(){
+  document.getElementById('tabContent').innerHTML = `
+    ${state.isAdmin ? entriesFormHTML() : ''}
+    <div id="filterBar"></div>
+    <div id="list">${renderEntriesList()}</div>
+  `;
+  if(state.isAdmin){
+    document.getElementById('photoInput').addEventListener('change', handlePhotoPreview);
+    document.getElementById('entryForm').addEventListener('submit', handleAdd);
+    const dl = document.getElementById('categoryList');
+    if(dl) dl.innerHTML = allCategories().map(c => `<option value="${escapeAttr(c)}">`).join('');
+    renderThumbList();
+  }
+  renderFilterBar('filterBar', state.entries, 'entriesFilter');
+}
+
+function entriesFormHTML(){
   return `
   <form class="add-form" id="entryForm">
     <h3>+ 새 기록 추가</h3>
@@ -188,9 +405,6 @@ function formHTML(){
     <button type="submit" class="submit-btn">저장하기</button>
   </form>`;
 }
-
-let pendingFiles = [];   // 원본 File 객체 (업로드용)
-let pendingPreviews = []; // 미리보기용 압축 dataURL
 
 async function handlePhotoPreview(e){
   const files = Array.from(e.target.files);
@@ -219,52 +433,6 @@ function removePendingPhoto(i){
   renderThumbList();
 }
 
-function compressForPreview(file){
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = e => {
-      const img = new Image();
-      img.onload = () => {
-        const maxW = 300;
-        const scale = Math.min(1, maxW / img.width);
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width * scale;
-        canvas.height = img.height * scale;
-        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', 0.6));
-      };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
-  });
-}
-
-// 업로드용 압축 (원본 파일 대체, Supabase Storage로 전송)
-function compressForUpload(file){
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = e => {
-      const img = new Image();
-      img.onload = () => {
-        const maxW = 1400;
-        const scale = Math.min(1, maxW / img.width);
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width * scale;
-        canvas.height = img.height * scale;
-        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.75);
-      };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
-  });
-}
-
-function buildMapLink(text){
-  if(/^https?:\/\//i.test(text)) return text;
-  return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(text);
-}
-
 async function handleAdd(e){
   e.preventDefault();
   const title = document.getElementById('titleInput').value.trim();
@@ -277,7 +445,6 @@ async function handleAdd(e){
   btn.disabled = true; btn.textContent = '업로드 중...';
 
   try{
-    // 1. 사진들을 Supabase Storage에 업로드
     const photoUrls = [];
     for(let i=0; i<pendingFiles.length; i++){
       const blob = await compressForUpload(pendingFiles[i]);
@@ -288,7 +455,6 @@ async function handleAdd(e){
       photoUrls.push(data.publicUrl);
     }
 
-    // 2. entries 테이블에 저장
     const { error } = await sb.from('entries').insert([{
       id, category, title,
       map_link: buildMapLink(rawMap || title),
@@ -299,18 +465,11 @@ async function handleAdd(e){
     if(error) throw error;
 
     pendingFiles = []; pendingPreviews = [];
-    await loadEntries();
+    await reloadEntries();
   }catch(err){
     alert('저장 실패: ' + err.message);
     btn.disabled = false; btn.textContent = '저장하기';
   }
-}
-
-async function loadEntries(){
-  const { data, error } = await sb.from('entries').select('*').order('created_at', { ascending:false });
-  if(error){ alert('불러오기 실패: ' + error.message); return; }
-  state.entries = data.map(d => ({...d, createdAt: d.created_at, mapLink: d.map_link}));
-  render();
 }
 
 function isArchived(entry){
@@ -319,30 +478,15 @@ function isArchived(entry){
   return days > EDIT_WINDOW_DAYS;
 }
 
-function renderList(){
-  const list = document.getElementById('list');
-  if(!list) return;
-  const filtered = state.filterCategory === 'all'
-    ? state.entries
-    : state.entries.filter(e => e.category === state.filterCategory);
-
+function renderEntriesList(){
+  const filtered = state.entriesFilter === 'all' ? state.entries : state.entries.filter(e => e.category === state.entriesFilter);
   if(filtered.length === 0){
-    list.innerHTML = `<div class="empty">아직 기록이 없습니다. ${state.isAdmin ? '위 폼으로 첫 기록을 남겨보세요.' : ''}</div>`;
-    return;
+    return `<div class="empty">아직 기록이 없습니다. ${state.isAdmin ? '위 폼으로 첫 기록을 남겨보세요.' : ''}</div>`;
   }
-  if(state.filterCategory !== 'all'){
-    list.innerHTML = filtered.map(entryCardHTML).join('');
-    return;
-  }
-  const groups = [];
-  filtered.forEach(e => {
-    let g = groups.find(g => g.category === e.category);
-    if(!g){ g = {category: e.category, items: []}; groups.push(g); }
-    g.items.push(e);
-  });
-  list.innerHTML = groups.map(g => `
-    <div class="group-header">${escapeHtml(g.category)}</div>
-    ${g.items.map(entryCardHTML).join('')}
+  if(state.entriesFilter !== 'all') return filtered.map(entryCardHTML).join('');
+  return groupBy(filtered, 'category').map(([cat, items]) => `
+    <div class="group-header">${escapeHtml(cat)}</div>
+    ${items.map(entryCardHTML).join('')}
   `).join('');
 }
 
@@ -369,22 +513,415 @@ async function deleteEntry(id){
     const { error } = await sb.from('entries').delete().eq('id', id);
     if(error) throw error;
     state.entries = state.entries.filter(e => e.id !== id);
-    renderList();
+    renderActiveTab();
   }catch(e){ alert('삭제 실패: ' + e.message); }
 }
 
-function openLightbox(src){
-  const box = document.createElement('div');
-  box.className = 'lightbox';
-  box.innerHTML = `<img src="${src}">`;
-  box.onclick = () => box.remove();
-  document.body.appendChild(box);
+/* ===== 2. 위시리스트 탭 ===== */
+
+let wlAutoMapLink = null;
+let wlAutoPhotoDataUrl = null;
+let wlManualPhotoFile = null;
+
+function renderWishlistTab(){
+  wlAutoMapLink = null; wlAutoPhotoDataUrl = null; wlManualPhotoFile = null;
+  const mode = state.wishlistMode;
+  document.getElementById('tabContent').innerHTML = `
+    <div class="mode-switch">
+      <button data-mode="single" class="${mode==='single'?'active':''}">한 곳씩 입력</button>
+      <button data-mode="bulk" class="${mode==='bulk'?'active':''}">여러 곳 한번에</button>
+    </div>
+    ${mode === 'single' ? wishlistSingleFormHTML() : wishlistBulkFormHTML()}
+    <div id="filterBar"></div>
+    <div id="list">${renderWishlistList()}</div>
+  `;
+  document.querySelectorAll('.mode-switch button').forEach(btn => {
+    btn.onclick = () => { state.wishlistMode = btn.dataset.mode; renderActiveTab(); };
+  });
+  const dl = document.getElementById('categoryList');
+  if(dl) dl.innerHTML = allCategories().map(c => `<option value="${escapeAttr(c)}">`).join('');
+  if(mode === 'single'){
+    document.getElementById('wishlistSingleForm').addEventListener('submit', handleWishlistSingleAdd);
+    document.getElementById('wlPhotoFile').addEventListener('change', handleWishlistPhotoFile);
+    document.getElementById('autoFillBtn').addEventListener('click', handleWishlistAutoFill);
+  } else {
+    document.getElementById('wishlistBulkForm').addEventListener('submit', handleWishlistBulkAdd);
+  }
+  renderFilterBar('filterBar', state.wishlist, 'wishlistFilter');
 }
 
-function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
-function escapeAttr(s){ return s.replace(/"/g,'&quot;'); }
+function wishlistSingleFormHTML(){
+  return `
+  <form class="add-form" id="wishlistSingleForm">
+    <h3>+ 위시리스트 추가</h3>
+    <label>여행 분류</label>
+    <input type="text" id="wlCategory" list="categoryList" required placeholder="예: 26년 대만여행">
+    <datalist id="categoryList"></datalist>
+    <label>장소 이름</label>
+    <input type="text" id="wlTitle" required placeholder="예: 스타벅스 도톤보리점">
+    <label>위치 검색어 (비우면 장소 이름으로 자동 검색)</label>
+    <div class="inline-row">
+      <input type="text" id="wlMap" placeholder="예: 오사카 도톤보리 스타벅스 (또는 구글맵 링크)">
+      <button type="button" class="autofill-btn" id="autoFillBtn">✨ 자동 채우기</button>
+    </div>
+    <label>특징 한줄</label>
+    <textarea id="wlNote" placeholder="예: 강변 뷰, 노키자 없음"></textarea>
+    <label>사진</label>
+    <input type="file" id="wlPhotoFile" accept="image/*">
+    <div id="wlPhotoPreview" style="margin-top:6px;"></div>
+    <button type="submit" class="submit-btn">저장하기</button>
+  </form>`;
+}
 
-if(state.unlocked){ loadEntries(); } else { render(); }
+function wishlistBulkFormHTML(){
+  return `
+  <form class="add-form" id="wishlistBulkForm">
+    <h3>+ 여러 곳 한번에 붙여넣기</h3>
+    <label>여행 분류 (이 배치 전체에 적용)</label>
+    <input type="text" id="wlBulkCategory" list="categoryList" required placeholder="예: 26년 대만여행">
+    <datalist id="categoryList"></datalist>
+    <div class="paste-hint">한 줄에 하나씩, "장소명 | 특징 | 검색어(선택) | 이미지URL(선택)" 형식으로 붙여넣으세요.</div>
+    <textarea id="wlBulkText" rows="6" placeholder="스타벅스 도톤보리점 | 강변 뷰 | 오사카 도톤보리 스타벅스 |&#10;몽키매직 | 오코노미야키 맛집 | | https://example.com/photo.jpg"></textarea>
+    <button type="submit" class="submit-btn">일괄 등록</button>
+  </form>`;
+}
+
+async function handleWishlistPhotoFile(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  wlManualPhotoFile = file;
+  wlAutoPhotoDataUrl = null;
+  const preview = document.getElementById('wlPhotoPreview');
+  const dataUrl = await compressForPreview(file);
+  preview.innerHTML = `<img src="${dataUrl}" style="width:70px;height:70px;object-fit:cover;border-radius:4px;border:1px solid var(--line);">`;
+}
+
+async function handleWishlistAutoFill(){
+  const btn = document.getElementById('autoFillBtn');
+  const mapVal = document.getElementById('wlMap').value.trim();
+  const titleVal = document.getElementById('wlTitle').value.trim();
+  const query = mapVal || titleVal;
+  if(!query){ alert('장소명 또는 위치 검색어를 먼저 입력해주세요.'); return; }
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '검색 중...';
+  try{
+    const res = await fetch('/api/place?query=' + encodeURIComponent(query));
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || '자동 채우기에 실패했습니다.');
+    document.getElementById('wlTitle').value = data.name || titleVal;
+    document.getElementById('wlNote').value = data.description || '';
+    wlAutoMapLink = data.mapLink || null;
+    if(data.photoDataUrl){
+      wlAutoPhotoDataUrl = data.photoDataUrl;
+      wlManualPhotoFile = null;
+      document.getElementById('wlPhotoPreview').innerHTML = `<img src="${data.photoDataUrl}" style="width:70px;height:70px;object-fit:cover;border-radius:4px;border:1px solid var(--line);">`;
+    }
+  }catch(err){
+    alert('자동 채우기 실패: ' + err.message);
+  }finally{
+    btn.disabled = false; btn.textContent = orig;
+  }
+}
+
+async function handleWishlistSingleAdd(e){
+  e.preventDefault();
+  const title = document.getElementById('wlTitle').value.trim();
+  if(!title) return;
+  const category = document.getElementById('wlCategory').value.trim() || '기타';
+  const mapVal = document.getElementById('wlMap').value.trim();
+  const note = document.getElementById('wlNote').value.trim();
+  const id = 'w' + Date.now();
+  const btn = e.target.querySelector('.submit-btn');
+  btn.disabled = true; btn.textContent = '저장 중...';
+  try{
+    let photo = null;
+    if(wlManualPhotoFile){
+      const blob = await compressForUpload(wlManualPhotoFile);
+      photo = await uploadPhotoBlob(blob, id);
+    } else if(wlAutoPhotoDataUrl){
+      const blob = dataUrlToBlob(wlAutoPhotoDataUrl);
+      photo = await uploadPhotoBlob(blob, id);
+    }
+    const map_link = wlAutoMapLink || buildMapLink(mapVal || title);
+    const { error } = await sb.from('wishlist').insert([{ id, category, title, map_link, photo, note }]);
+    if(error) throw error;
+    wlAutoMapLink = null; wlAutoPhotoDataUrl = null; wlManualPhotoFile = null;
+    await reloadWishlist();
+  }catch(err){
+    alert('저장 실패: ' + err.message);
+    btn.disabled = false; btn.textContent = '저장하기';
+  }
+}
+
+async function handleWishlistBulkAdd(e){
+  e.preventDefault();
+  const category = document.getElementById('wlBulkCategory').value.trim() || '기타';
+  const raw = document.getElementById('wlBulkText').value;
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  if(lines.length === 0) return;
+  const rows = lines.map((line, i) => {
+    const parts = line.split('|').map(p => p.trim());
+    const title = parts[0] || '';
+    const note = parts[1] || '';
+    const search = parts[2] || '';
+    const photo = parts[3] || null;
+    return {
+      id: 'w' + Date.now() + '_' + i,
+      category, title, note, photo,
+      map_link: buildMapLink(search || title)
+    };
+  }).filter(r => r.title);
+  if(rows.length === 0){ alert('올바른 형식이 없습니다. "장소명 | 특징 | 검색어(선택) | 이미지URL(선택)" 형식으로 입력해주세요.'); return; }
+  const btn = e.target.querySelector('.submit-btn');
+  btn.disabled = true; btn.textContent = '등록 중...';
+  try{
+    const { error } = await sb.from('wishlist').insert(rows);
+    if(error) throw error;
+    e.target.reset();
+    await reloadWishlist();
+  }catch(err){
+    alert('등록 실패: ' + err.message);
+  }finally{
+    btn.disabled = false; btn.textContent = '일괄 등록';
+  }
+}
+
+function renderWishlistList(){
+  const filtered = state.wishlistFilter === 'all' ? state.wishlist : state.wishlist.filter(w => w.category === state.wishlistFilter);
+  if(filtered.length === 0) return `<div class="empty">아직 위시리스트가 없습니다.</div>`;
+  if(state.wishlistFilter !== 'all') return filtered.map(wishlistCardHTML).join('');
+  return groupBy(filtered, 'category').map(([cat, items]) => `
+    <div class="group-header">${escapeHtml(cat)}</div>
+    ${items.map(wishlistCardHTML).join('')}
+  `).join('');
+}
+
+function wishlistCardHTML(item){
+  return `<div class="wish-card">
+    ${item.photo ? `<img class="wish-photo" src="${escapeAttr(item.photo)}" onclick="openLightbox('${escapeAttr(item.photo)}')" onerror="this.style.display='none'">` : ''}
+    <div class="wish-body">
+      <div class="wish-title">${escapeHtml(item.title)}</div>
+      ${item.note ? `<div class="wish-note">${escapeHtml(item.note)}</div>` : ''}
+      ${item.map_link ? `<a class="entry-map" href="${escapeAttr(item.map_link)}" target="_blank">📍 구글맵에서 보기</a>` : ''}
+      <div class="card-actions"><button class="danger" onclick="deleteWishlistItem('${item.id}')">삭제</button></div>
+    </div>
+  </div>`;
+}
+
+async function deleteWishlistItem(id){
+  if(!confirm('삭제할까요? 되돌릴 수 없습니다.')) return;
+  try{
+    const { error } = await sb.from('wishlist').delete().eq('id', id);
+    if(error) throw error;
+    state.wishlist = state.wishlist.filter(w => w.id !== id);
+    renderActiveTab();
+  }catch(err){ alert('삭제 실패: ' + err.message); }
+}
+
+/* ===== 3. 경비 탭 ===== */
+
+function renderExpensesTab(){
+  const total = state.expenses.reduce((s,x) => s + Number(x.krw_amount), 0);
+  document.getElementById('tabContent').innerHTML = `
+    <div class="expense-total"><span>총 합계</span><span class="amt">${total.toLocaleString()}원</span></div>
+    ${expenseFormHTML()}
+    <div id="filterBar"></div>
+    <div id="list">${renderExpensesList()}</div>
+  `;
+  const dl = document.getElementById('categoryList');
+  if(dl) dl.innerHTML = allCategories().map(c => `<option value="${escapeAttr(c)}">`).join('');
+  document.getElementById('expenseForm').addEventListener('submit', handleExpenseAdd);
+  document.getElementById('expCurrency').addEventListener('input', updateExpenseRateVisibility);
+  updateExpenseRateVisibility();
+  renderFilterBar('filterBar', state.expenses, 'expensesFilter');
+}
+
+function expenseFormHTML(){
+  return `
+  <form class="add-form" id="expenseForm">
+    <h3>+ 경비 추가</h3>
+    <label>여행 분류</label>
+    <input type="text" id="expCategory" list="categoryList" required placeholder="예: 26년 대만여행">
+    <datalist id="categoryList"></datalist>
+    <label>항목명</label>
+    <input type="text" id="expItem" required placeholder="예: 숙소 1박">
+    <label>통화</label>
+    <input type="text" id="expCurrency" list="currencyList" value="KRW" placeholder="KRW">
+    <datalist id="currencyList">
+      <option value="KRW"><option value="USD"><option value="JPY"><option value="EUR"><option value="CNY">
+    </datalist>
+    <div id="expRateRow">
+      <label>환율 (외화 1단위당 원화)</label>
+      <input type="text" id="expRate" inputmode="decimal" placeholder="예: 1350">
+    </div>
+    <label>금액</label>
+    <input type="text" id="expAmount" inputmode="decimal" required placeholder="예: 50000">
+    <button type="submit" class="submit-btn">저장하기</button>
+  </form>`;
+}
+
+function updateExpenseRateVisibility(){
+  const cur = document.getElementById('expCurrency').value.trim().toUpperCase();
+  const rateRow = document.getElementById('expRateRow');
+  if(!rateRow) return;
+  rateRow.style.display = (cur === 'KRW' || cur === '') ? 'none' : '';
+}
+
+async function handleExpenseAdd(e){
+  e.preventDefault();
+  const category = document.getElementById('expCategory').value.trim() || '기타';
+  const item = document.getElementById('expItem').value.trim();
+  if(!item) return;
+  const currency = document.getElementById('expCurrency').value.trim().toUpperCase() || 'KRW';
+  const amount = parseFloat(document.getElementById('expAmount').value);
+  if(isNaN(amount)){ alert('금액을 입력해주세요.'); return; }
+  let rate = 1;
+  if(currency !== 'KRW'){
+    rate = parseFloat(document.getElementById('expRate').value);
+    if(isNaN(rate) || rate <= 0){ alert('환율을 입력해주세요.'); return; }
+  }
+  const krw_amount = Math.round(amount * rate);
+  const id = 'x' + Date.now();
+  const btn = e.target.querySelector('.submit-btn');
+  btn.disabled = true; btn.textContent = '저장 중...';
+  try{
+    const { error } = await sb.from('expenses').insert([{ id, category, item, currency, amount, rate, krw_amount }]);
+    if(error) throw error;
+    await reloadExpenses();
+  }catch(err){
+    alert('저장 실패: ' + err.message);
+    btn.disabled = false; btn.textContent = '저장하기';
+  }
+}
+
+function renderExpensesList(){
+  const filtered = state.expensesFilter === 'all' ? state.expenses : state.expenses.filter(x => x.category === state.expensesFilter);
+  if(filtered.length === 0) return `<div class="empty">아직 경비 기록이 없습니다.</div>`;
+  return groupBy(filtered, 'category').map(([cat, items]) => {
+    const subtotal = items.reduce((s,x) => s + Number(x.krw_amount), 0);
+    return `<div class="group-header">${escapeHtml(cat)}</div>
+      ${items.map(expenseRowHTML).join('')}
+      <div class="expense-subtotal">소계 ${subtotal.toLocaleString()}원</div>`;
+  }).join('');
+}
+
+function expenseRowHTML(x){
+  const amtText = x.currency === 'KRW'
+    ? `${Number(x.amount).toLocaleString()}원`
+    : `${Number(x.amount).toLocaleString()} ${escapeHtml(x.currency)} (약 ${Number(x.krw_amount).toLocaleString()}원)`;
+  return `<div class="expense-row">
+    <span class="name">${escapeHtml(x.item)}</span>
+    <span class="amt">${amtText}</span>
+    <button class="small-del" onclick="deleteExpense('${x.id}')">삭제</button>
+  </div>`;
+}
+
+async function deleteExpense(id){
+  if(!confirm('삭제할까요? 되돌릴 수 없습니다.')) return;
+  try{
+    const { error } = await sb.from('expenses').delete().eq('id', id);
+    if(error) throw error;
+    state.expenses = state.expenses.filter(x => x.id !== id);
+    renderActiveTab();
+  }catch(err){ alert('삭제 실패: ' + err.message); }
+}
+
+/* ===== 4. 준비물 탭 ===== */
+
+function renderChecklistTab(){
+  document.getElementById('tabContent').innerHTML = `
+    ${checklistFormHTML()}
+    <div id="filterBar"></div>
+    <div id="list">${renderChecklistList()}</div>
+  `;
+  const dl = document.getElementById('categoryList');
+  if(dl) dl.innerHTML = allCategories().map(c => `<option value="${escapeAttr(c)}">`).join('');
+  const ownerDl = document.getElementById('ownerList');
+  if(ownerDl) ownerDl.innerHTML = uniqueOwners().map(o => `<option value="${escapeAttr(o)}">`).join('');
+  document.getElementById('checklistForm').addEventListener('submit', handleChecklistAdd);
+  renderFilterBar('filterBar', state.checklist, 'checklistFilter');
+}
+
+function checklistFormHTML(){
+  return `
+  <form class="add-form" id="checklistForm">
+    <h3>+ 준비물 추가</h3>
+    <label>여행 분류</label>
+    <input type="text" id="ckCategory" list="categoryList" required placeholder="예: 26년 대만여행">
+    <datalist id="categoryList"></datalist>
+    <label>담당</label>
+    <input type="text" id="ckOwner" list="ownerList" placeholder="예: 공동, 아빠, 엄마">
+    <datalist id="ownerList"></datalist>
+    <label>준비물</label>
+    <input type="text" id="ckText" required placeholder="예: 여권, 충전기">
+    <button type="submit" class="submit-btn">추가하기</button>
+  </form>`;
+}
+
+function uniqueOwners(){
+  const seen = ['공동'];
+  state.checklist.forEach(c => { if(!seen.includes(c.owner)) seen.push(c.owner); });
+  return seen;
+}
+
+async function handleChecklistAdd(e){
+  e.preventDefault();
+  const category = document.getElementById('ckCategory').value.trim() || '기타';
+  const owner = document.getElementById('ckOwner').value.trim() || '공동';
+  const text = document.getElementById('ckText').value.trim();
+  if(!text) return;
+  const id = 'c' + Date.now();
+  try{
+    const { error } = await sb.from('checklist_items').insert([{ id, category, owner, text, checked:false }]);
+    if(error) throw error;
+    await reloadChecklist();
+  }catch(err){ alert('저장 실패: ' + err.message); }
+}
+
+async function toggleChecklistItem(id, checked){
+  try{
+    const { error } = await sb.from('checklist_items').update({ checked }).eq('id', id);
+    if(error) throw error;
+    const item = state.checklist.find(c => c.id === id);
+    if(item) item.checked = checked;
+    renderActiveTab();
+  }catch(err){ alert('업데이트 실패: ' + err.message); }
+}
+
+async function deleteChecklistItem(id){
+  if(!confirm('삭제할까요?')) return;
+  try{
+    const { error } = await sb.from('checklist_items').delete().eq('id', id);
+    if(error) throw error;
+    state.checklist = state.checklist.filter(c => c.id !== id);
+    renderActiveTab();
+  }catch(err){ alert('삭제 실패: ' + err.message); }
+}
+
+function renderChecklistList(){
+  const filtered = state.checklistFilter === 'all' ? state.checklist : state.checklist.filter(c => c.category === state.checklistFilter);
+  if(filtered.length === 0) return `<div class="empty">아직 준비물이 없습니다.</div>`;
+  return groupBy(filtered, 'category').map(([cat, items]) => {
+    const byOwner = groupBy(items, 'owner');
+    return `<div class="group-header">${escapeHtml(cat)}</div>
+      ${byOwner.map(([owner, ownerItems]) => `
+        <div class="owner-header">${escapeHtml(owner)}</div>
+        ${ownerItems.map(checklistRowHTML).join('')}
+      `).join('')}`;
+  }).join('');
+}
+
+function checklistRowHTML(item){
+  return `<div class="check-row ${item.checked?'checked':''}">
+    <input type="checkbox" ${item.checked?'checked':''} onchange="toggleChecklistItem('${item.id}', this.checked)">
+    <span class="txt">${escapeHtml(item.text)}</span>
+    <button class="small-del" onclick="deleteChecklistItem('${item.id}')">삭제</button>
+  </div>`;
+}
+
+/* ===== 시작 ===== */
+
+if(state.unlocked){ loadAll(); } else { render(); }
 </script>
 </body>
 </html>
