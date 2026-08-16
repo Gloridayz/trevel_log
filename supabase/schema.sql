@@ -54,10 +54,18 @@ create table if not exists expenses (
   created_at timestamptz default now()
 );
 
+create table if not exists checklist_owners (
+  id text primary key,
+  trip_category_id text references trip_categories(id),
+  name text not null,
+  color text not null default '#5c6f5a',
+  created_at timestamptz default now()
+);
+
 create table if not exists checklist_items (
   id text primary key,
   trip_category_id text references trip_categories(id),
-  owner text not null default '공동',
+  owner text references checklist_owners(id),
   text text not null,
   checked boolean not null default false,
   created_at timestamptz default now()
@@ -68,6 +76,7 @@ alter table entries enable row level security;
 alter table wishlist enable row level security;
 alter table expense_items enable row level security;
 alter table expenses enable row level security;
+alter table checklist_owners enable row level security;
 alter table checklist_items enable row level security;
 
 drop policy if exists "public all" on trip_categories;
@@ -75,6 +84,7 @@ drop policy if exists "public all" on entries;
 drop policy if exists "public all" on wishlist;
 drop policy if exists "public all" on expense_items;
 drop policy if exists "public all" on expenses;
+drop policy if exists "public all" on checklist_owners;
 drop policy if exists "public all" on checklist_items;
 
 create policy "public all" on trip_categories for all using (true) with check (true);
@@ -82,6 +92,7 @@ create policy "public all" on entries for all using (true) with check (true);
 create policy "public all" on wishlist for all using (true) with check (true);
 create policy "public all" on expense_items for all using (true) with check (true);
 create policy "public all" on expenses for all using (true) with check (true);
+create policy "public all" on checklist_owners for all using (true) with check (true);
 create policy "public all" on checklist_items for all using (true) with check (true);
 
 -- Storage: 'photos' 버킷을 미리 만들고(Public), 아래 정책을 적용하세요.
