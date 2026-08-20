@@ -30,6 +30,7 @@ create table if not exists wishlist (
   map_link text,
   photo text,
   note text,
+  converted boolean not null default false,
   created_at timestamptz default now()
 );
 
