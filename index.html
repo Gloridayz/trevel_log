@@ -51,8 +51,6 @@
   .cat-actions .cat-delete{border-color:var(--stamp);color:var(--stamp);}
 
   .entry-card{background:var(--paper-dark);border:1px solid var(--line);border-radius:4px;padding:16px;margin-bottom:18px;position:relative;}
-  .entry-card.archived{opacity:.82;}
-  .stamp-badge{position:absolute;top:12px;right:12px;border:2px solid var(--stamp);color:var(--stamp);font-family:'Montserrat','Nanum Gothic',sans-serif;font-size:10px;font-weight:700;padding:3px 8px;border-radius:3px;transform:rotate(6deg);letter-spacing:.05em;}
   .photo-gallery{display:flex;gap:6px;overflow-x:auto;margin-bottom:10px;padding-bottom:4px;}
   .photo-gallery .gallery-img{height:180px;width:auto;flex-shrink:0;border-radius:3px;border:1px solid var(--line);cursor:pointer;}
   .lightbox{position:fixed;inset:0;background:rgba(20,15,10,0.9);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px;}
@@ -75,7 +73,6 @@
   .submit-btn{margin-top:14px;background:var(--green);color:#fff;border:none;padding:9px 20px;border-radius:4px;font-weight:700;cursor:pointer;font-size:13px;}
   .submit-btn:disabled{opacity:.6;}
   .empty{text-align:center;padding:40px 10px;color:var(--green);font-size:13px;}
-  footer.note{text-align:center;font-family:'Nanum Gothic',sans-serif;font-size:10px;color:var(--green);margin-top:30px;opacity:.7;}
 
   .mode-switch{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
   .mode-switch button{font-family:'Nanum Gothic',sans-serif;font-size:11px;border:1px solid var(--gold);border-radius:20px;padding:5px 12px;background:transparent;cursor:pointer;color:var(--gold);}
@@ -90,6 +87,8 @@
   .wish-body{padding:14px 16px;}
   .wish-title{font-family:'Nanum Gothic',sans-serif;font-weight:800;font-size:19px;margin:0 0 4px;}
   .wish-note{font-size:13px;color:#3c4750;margin:4px 0 8px;white-space:pre-wrap;}
+  .visited-check{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--green);margin-top:8px;cursor:pointer;}
+  .visited-check input{width:16px;height:16px;accent-color:var(--green);cursor:pointer;}
 
   .expense-total{background:var(--ink);color:var(--paper);border-radius:4px;padding:12px 16px;font-family:'Nanum Gothic',sans-serif;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;}
   .expense-total .amt{font-family:'Montserrat','Nanum Gothic',sans-serif;font-size:20px;font-weight:700;}
@@ -150,7 +149,6 @@ const ADMIN_PIN = "0127";
 const VIEW_PIN  = "0000";
 /* =================================== */
 
-const EDIT_WINDOW_DAYS = 7;
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const TAB_LIST = [
@@ -171,6 +169,7 @@ let state = {
   tripCategories: [],
   selectedCategoryId: null,
   activeTab: 'entries',
+  editingEntryId: null,
   entries: [],
   wishlist: [], wishlistMode: 'single',
   expenses: [], expenseItems: [], expenseItemsManageOpen: false, lastExpenseDate: null,
@@ -293,7 +292,7 @@ async function loadCategoryData(){
   try{
     const [e, w, x, c, ei, co] = await Promise.all([
       sb.from('entries').select('*').eq('trip_category_id', id).order('created_at', { ascending:false }),
-      sb.from('wishlist').select('*').eq('trip_category_id', id).order('created_at', { ascending:false }),
+      sb.from('wishlist').select('*').eq('trip_category_id', id).eq('converted', false).order('created_at', { ascending:false }),
       sb.from('expenses').select('*').eq('trip_category_id', id).order('date', { ascending:false }),
       sb.from('checklist_items').select('*').eq('trip_category_id', id).order('created_at', { ascending:true }),
       sb.from('expense_items').select('*').eq('trip_category_id', id).order('created_at', { ascending:true }),
@@ -318,6 +317,7 @@ async function loadCategoryData(){
     state.expenseItemsManageOpen = false;
     state.checklistOwnersManageOpen = false;
     state.checklistRemainingOnly = false;
+    state.editingEntryId = null;
     selectedCkOwnerId = null;
     render();
   }catch(err){ alert('불러오기 실패: ' + err.message); }
@@ -330,7 +330,7 @@ async function reloadEntries(){
   renderActiveTab();
 }
 async function reloadWishlist(){
-  const { data, error } = await sb.from('wishlist').select('*').eq('trip_category_id', state.selectedCategoryId).order('created_at', { ascending:false });
+  const { data, error } = await sb.from('wishlist').select('*').eq('trip_category_id', state.selectedCategoryId).eq('converted', false).order('created_at', { ascending:false });
   if(error){ alert('불러오기 실패: ' + error.message); return; }
   state.wishlist = data;
   renderActiveTab();
@@ -533,7 +533,6 @@ function renderTripView(){
       ${TAB_LIST.map(t => `<button class="tab ${state.activeTab===t.key?'active':''}" data-tab="${t.key}">${t.label}</button>`).join('')}
     </div>
     <div id="tabContent"></div>
-    ${state.activeTab === 'entries' ? `<footer class="note">기록 후 ${EDIT_WINDOW_DAYS}일간 수정 가능</footer>` : ''}
   `;
   document.getElementById('adminToggle').onclick = toggleAdmin;
   document.getElementById('backToCategories').onclick = () => { state.selectedCategoryId = null; render(); };
@@ -655,12 +654,6 @@ async function handleAdd(e){
   }
 }
 
-function isArchived(entry){
-  const created = new Date(entry.createdAt);
-  const days = (Date.now() - created.getTime()) / 86400000;
-  return days > EDIT_WINDOW_DAYS;
-}
-
 async function deleteEntry(id){
   if(!confirm('이 기록을 삭제할까요? 되돌릴 수 없습니다.')) return;
   try{
@@ -686,6 +679,15 @@ function renderMemoriesTab(){
   if(pdfBtn) pdfBtn.onclick = () => exportEntries(state.entries, categoryFileName(), 'pdf', pdfBtn);
   const imgBtn = document.getElementById('exportAllImageBtn');
   if(imgBtn) imgBtn.onclick = () => exportEntries(state.entries, categoryFileName(), 'image', imgBtn);
+
+  const editPhotoInput = document.getElementById('editPhotoInput');
+  if(editPhotoInput){
+    editPhotoInput.addEventListener('change', handleEditPhotoPreview);
+    document.getElementById('editSaveBtn').onclick = () => handleEditSave(state.editingEntryId);
+    document.getElementById('editCancelBtn').onclick = cancelEditEntry;
+    renderEditExistingPhotoList();
+    renderEditPendingPhotoList();
+  }
 }
 
 function renderEntriesList(){
@@ -694,12 +696,11 @@ function renderEntriesList(){
 }
 
 function entryCardHTML(entry){
-  const archived = isArchived(entry);
+  if(state.editingEntryId === entry.id) return entryEditCardHTML(entry);
   const dateStr = new Date(entry.createdAt).toLocaleDateString('ko-KR', {year:'numeric',month:'2-digit',day:'2-digit'});
   const photos = entry.photos || [];
   return `
-  <div class="entry-card ${archived?'archived':''}">
-    ${archived ? '<div class="stamp-badge">ARCHIVED</div>' : ''}
+  <div class="entry-card">
     ${photos.length ? `<div class="photo-gallery">${photos.map(p => `<img class="gallery-img" src="${p}" onclick="openLightbox('${p}')">`).join('')}</div>` : ''}
     <div class="entry-title">${escapeHtml(entry.title)}</div>
     <div class="entry-date">${dateStr}</div>
@@ -709,9 +710,132 @@ function entryCardHTML(entry){
     <div class="card-actions">
       <button type="button" class="export-mini" onclick="exportSingleEntry('${entry.id}', 'pdf', this)">📄 PDF</button>
       <button type="button" class="export-mini" onclick="exportSingleEntry('${entry.id}', 'image', this)">🖼️ 이미지</button>
-      ${(state.isAdmin && !archived) ? `<button class="danger" onclick="deleteEntry('${entry.id}')">삭제</button>` : ''}
+      ${state.isAdmin ? `<button type="button" onclick="startEditEntry('${entry.id}')">수정</button>` : ''}
+      ${state.isAdmin ? `<button class="danger" onclick="deleteEntry('${entry.id}')">삭제</button>` : ''}
     </div>
   </div>`;
+}
+
+/* ===== 기록 수정 ===== */
+
+let editPendingFiles = [];
+let editPendingPreviews = [];
+let editExistingPhotos = [];
+
+function startEditEntry(id){
+  const entry = state.entries.find(e => e.id === id);
+  if(!entry) return;
+  state.editingEntryId = id;
+  editExistingPhotos = (entry.photos || []).slice();
+  editPendingFiles = [];
+  editPendingPreviews = [];
+  renderActiveTab();
+}
+
+function cancelEditEntry(){
+  state.editingEntryId = null;
+  editPendingFiles = []; editPendingPreviews = []; editExistingPhotos = [];
+  renderActiveTab();
+}
+
+function entryEditCardHTML(entry){
+  return `
+  <div class="add-form">
+    <h3>기록 수정</h3>
+    <label>장소 이름</label>
+    <input type="text" id="editTitleInput" value="${escapeAttr(entry.title)}">
+    <label>위치 검색어 (또는 링크)</label>
+    <input type="text" id="editMapInput" value="${escapeAttr(entry.mapLink || '')}">
+    <label>기존 사진</label>
+    <div id="editExistingPhotoList" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;"></div>
+    <label>사진 추가</label>
+    <input type="file" id="editPhotoInput" accept="image/*" multiple>
+    <div id="editPendingPhotoList" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;"></div>
+    <label>먹은 음식</label>
+    <textarea id="editFoodInput">${escapeHtml(entry.food || '')}</textarea>
+    <label>메모</label>
+    <textarea id="editNoteInput">${escapeHtml(entry.note || '')}</textarea>
+    <div class="card-actions">
+      <button type="button" class="submit-btn" id="editSaveBtn" style="margin-top:0;">저장하기</button>
+      <button type="button" id="editCancelBtn">취소</button>
+    </div>
+  </div>`;
+}
+
+async function handleEditPhotoPreview(e){
+  const files = Array.from(e.target.files);
+  for(const file of files){
+    editPendingFiles.push(file);
+    editPendingPreviews.push(await compressForPreview(file));
+  }
+  renderEditPendingPhotoList();
+  e.target.value = '';
+}
+
+function renderEditPendingPhotoList(){
+  const box = document.getElementById('editPendingPhotoList');
+  if(!box) return;
+  box.innerHTML = editPendingPreviews.map((p,i) => `
+    <div style="position:relative;">
+      <img src="${p}" style="width:70px;height:70px;object-fit:cover;border-radius:4px;border:1px solid var(--line);">
+      <button type="button" onclick="removeEditPendingPhoto(${i})"
+        style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:var(--stamp);color:#fff;border:none;font-size:11px;line-height:1;cursor:pointer;">×</button>
+    </div>`).join('');
+}
+
+function removeEditPendingPhoto(i){
+  editPendingFiles.splice(i,1);
+  editPendingPreviews.splice(i,1);
+  renderEditPendingPhotoList();
+}
+
+function renderEditExistingPhotoList(){
+  const box = document.getElementById('editExistingPhotoList');
+  if(!box) return;
+  box.innerHTML = editExistingPhotos.length === 0
+    ? `<div class="dim" style="font-size:12px;">남은 기존 사진이 없습니다.</div>`
+    : editExistingPhotos.map((url,i) => `
+      <div style="position:relative;">
+        <img src="${url}" style="width:70px;height:70px;object-fit:cover;border-radius:4px;border:1px solid var(--line);">
+        <button type="button" onclick="removeEditExistingPhoto(${i})"
+          style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:var(--stamp);color:#fff;border:none;font-size:11px;line-height:1;cursor:pointer;">×</button>
+      </div>`).join('');
+}
+
+function removeEditExistingPhoto(i){
+  editExistingPhotos.splice(i,1);
+  renderEditExistingPhotoList();
+}
+
+async function handleEditSave(id){
+  const title = document.getElementById('editTitleInput').value.trim();
+  if(!title){ alert('장소 이름을 입력해주세요.'); return; }
+  const mapVal = document.getElementById('editMapInput').value.trim();
+  const food = document.getElementById('editFoodInput').value.trim();
+  const note = document.getElementById('editNoteInput').value.trim();
+  const btn = document.getElementById('editSaveBtn');
+  btn.disabled = true; btn.textContent = '저장 중...';
+  try{
+    const newPhotoUrls = [];
+    for(let i=0; i<editPendingFiles.length; i++){
+      const blob = await compressForUpload(editPendingFiles[i]);
+      const path = `${id}/${Date.now()}_edit_${i}.jpg`;
+      const { error: upErr } = await sb.storage.from('photos').upload(path, blob, { contentType: 'image/jpeg' });
+      if(upErr) throw upErr;
+      const { data } = sb.storage.from('photos').getPublicUrl(path);
+      newPhotoUrls.push(data.publicUrl);
+    }
+    const photos = [...editExistingPhotos, ...newPhotoUrls];
+    const map_link = buildMapLink(mapVal || title);
+    const { error } = await sb.from('entries').update({ title, map_link, food, note, photos }).eq('id', id);
+    if(error) throw error;
+    state.editingEntryId = null;
+    editPendingFiles = []; editPendingPreviews = []; editExistingPhotos = [];
+    await reloadEntries();
+  }catch(err){
+    alert('저장 실패: ' + err.message);
+    btn.disabled = false; btn.textContent = '저장하기';
+  }
 }
 
 /* ===== 추억 내보내기 (PDF / 이미지, 원본 사진 사용) ===== */
@@ -1066,6 +1190,9 @@ function wishlistCardHTML(item){
       <div class="wish-title">${escapeHtml(item.title)}</div>
       ${item.note ? `<div class="wish-note">${escapeHtml(item.note)}</div>` : ''}
       ${item.map_link ? `<a class="entry-map" href="${escapeAttr(item.map_link)}" target="_blank">📍 구글맵에서 보기</a>` : ''}
+      <label class="visited-check">
+        <input type="checkbox" onchange="convertWishlistToEntry('${item.id}', this)"> 다녀옴 (기록으로 옮기기)
+      </label>
       <div class="card-actions"><button class="danger" onclick="deleteWishlistItem('${item.id}')">삭제</button></div>
     </div>
   </div>`;
@@ -1079,6 +1206,34 @@ async function deleteWishlistItem(id){
     state.wishlist = state.wishlist.filter(w => w.id !== id);
     renderActiveTab();
   }catch(err){ alert('삭제 실패: ' + err.message); }
+}
+
+async function convertWishlistToEntry(id, checkbox){
+  const item = state.wishlist.find(w => w.id === id);
+  if(!item){ checkbox.checked = false; return; }
+  if(!confirm('이 항목을 기록으로 옮길까요? 위시리스트에서는 사라집니다.')){
+    checkbox.checked = false;
+    return;
+  }
+  checkbox.disabled = true;
+  try{
+    const entryId = 'e' + Date.now();
+    const { error: insErr } = await sb.from('entries').insert([{
+      id: entryId, trip_category_id: state.selectedCategoryId, title: item.title,
+      map_link: item.map_link, photos: item.photo ? [item.photo] : [], food: '', note: ''
+    }]);
+    if(insErr) throw insErr;
+    const { error: updErr } = await sb.from('wishlist').update({ converted: true }).eq('id', id);
+    if(updErr) throw updErr;
+    state.wishlist = state.wishlist.filter(w => w.id !== id);
+    await reloadEntries();
+    state.activeTab = 'memories';
+    render();
+  }catch(err){
+    alert('전환 실패: ' + err.message);
+    checkbox.checked = false;
+    checkbox.disabled = false;
+  }
 }
 
 /* ===== 4. 경비 탭 ===== */
